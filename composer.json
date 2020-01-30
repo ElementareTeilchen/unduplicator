@@ -1,7 +1,6 @@
 {
   "name": "elementareteilchen/unduplicator",
   "type": "typo3-cms-extension",
-  "version": "0.1.0",
   "description": "Finds duplicates in sys_file and unduplicates them",
   "require": {
     "typo3/cms-core": "^8.7",
