@@ -1,10 +1,11 @@
 <?php
 namespace ElementareTeilchen\Unduplicator\Command;
 
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -37,8 +38,28 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * @package sysfile_unduplicator
  */
-class UnduplicateCommand extends \Symfony\Component\Console\Command\Command
+class UnduplicateCommand extends Command
 {
+    /**
+     * @var ConnectionPool
+     */
+    private $connectionPool;
+
+    /**
+     * @var bool
+     */
+    private $dryRun = false;
+
+    /**
+     * @var SymfonyStyle
+     */
+    private $output;
+
+    public function __construct($name = null, ConnectionPool $connectionPool = null)
+    {
+        parent::__construct($name);
+        $this->connectionPool = $connectionPool ?: GeneralUtility::makeInstance(ConnectionPool::class);
+    }
 
     /**
      * Configure the command by defining the name, options and arguments
@@ -54,7 +75,13 @@ class UnduplicateCommand extends \Symfony\Component\Console\Command\Command
             '- tx_news_domain_model_news::bodytext ' . LF .
             '- tx_news_domain_model_news::internalurl ' . LF .
             'AND the remove the duplicate in sys_file and sys_file_metadata'
-            );
+        );
+        $this->addOption(
+            'dry-run',
+            null,
+            InputOption::VALUE_NONE,
+            'If set, all database updates are not executed'
+        );
     }
 
     /**
@@ -65,66 +92,180 @@ class UnduplicateCommand extends \Symfony\Component\Console\Command\Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new SymfonyStyle($input, $output);
-        $io->title($this->getDescription());
-        #$showDetails = $output->getVerbosity() > OutputInterface::VERBOSITY_NORMAL;
+        $this->output = new SymfonyStyle($input, $output);
+        $this->output->title($this->getDescription());
 
-        // get all duplicates
-        $tableName = 'sys_file';
+        $this->dryRun = $input->getOption('dry-run');
 
-        /** @var  $connection Connection */
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionForTable($tableName);
-        $findQuery = 'select GROUP_CONCAT(uid) as uids,identifier,count(*) as anz from sys_file group by identifier_hash having anz > 1 ';
-        $statement = $connection->executeQuery($findQuery);
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
+        $statement = $queryBuilder->count('*')
+            ->addSelect('identifier')
+            ->from('sys_file')
+            ->groupBy('identifier')
+            ->having('COUNT(*) > 1')
+            ->execute();
 
-        $duplicates = [];
         while ($row = $statement->fetch()) {
-            $duplicates[] = $row;
+            $files = $this->findDuplicateFilesForIdentifier($row['identifier']);
+            $originalUid = null;
+            foreach ($files as $fileRow) {
+                if ($originalUid === null) {
+                    $originalUid = $fileRow['uid'];
+                    continue;
+                }
+
+                $this->findAndUpdateReferences($originalUid, $fileRow['uid']);
+                if (!$this->dryRun) {
+                    $this->deleteOldFileRecord($fileRow['uid']);
+                }
+            }
+        }
+    }
+
+    private function findDuplicateFilesForIdentifier(string $identifier): array
+    {
+        $fileQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
+
+        return $fileQueryBuilder->select('uid')
+            ->from('sys_file')
+            ->where(
+                $fileQueryBuilder->expr()->eq(
+                    'identifier',
+                    $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR)
+                )
+            )
+            ->orderBy('uid', 'DESC')
+            ->execute()
+            ->fetchAll();
+    }
+
+    private function findAndUpdateReferences(int $originalUid, int $oldFileUid)
+    {
+        $referenceQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_refindex');
+        $referenceExpr = $referenceQueryBuilder->expr();
+        $referenceStatement = $referenceQueryBuilder->select('*')
+            ->from('sys_refindex')
+            ->where(
+                $referenceExpr->eq(
+                    'ref_table',
+                    $referenceQueryBuilder->createNamedParameter('sys_file')
+                ),
+                $referenceExpr->eq(
+                    'ref_uid',
+                    $referenceQueryBuilder->createNamedParameter($oldFileUid)
+                )
+            )
+            ->execute();
+
+        if (!$referenceStatement->rowCount()) {
+            return;
         }
 
-        /** @var  $connectionSysFileReference Connection */
-        $connectionSysFileReference = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file_reference');
-        /** @var  $connectionSysFileMetadata Connection */
-        $connectionSysFileMetadata = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('sys_file_metadata');
-        /** @var  $connectionContent Connection */
-        $connectionContent = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('tt_content');
-        /** @var  $connectionNews Connection */
-        $connectionNews = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('tx_news_domain_model_news');
+        $this->output->writeln('Unduplicate sys_file:' . $originalUid);
+        $tableHeaders = [
+            'hash',
+            'tablename',
+            'recuid',
+            'field',
+            'softref_key',
+        ];
+        $tableRows = null;
+        while ($referenceRow = $referenceStatement->fetch()) {
+            $tableRows[] = [
+                $referenceRow['hash'],
+                $referenceRow['tablename'],
+                $referenceRow['recuid'],
+                $referenceRow['field'],
+                $referenceRow['softref_key'],
+            ];
 
-        foreach ($duplicates as $duplicate) {
-            $io->writeln('unduplicate: ' . $duplicate['uids']);
-            $duplicateIds = GeneralUtility::trimExplode(',', $duplicate['uids'], true);
-            // make sure we have the lower uid at first position
-            sort($duplicateIds);
+            if (!$this->dryRun) {
+                $this->updateReferencedRecord($originalUid, $referenceRow);
+                $this->updateReference($originalUid, $referenceRow);
+            }
+        }
+        $this->output->table($tableHeaders, $tableRows);
+    }
 
-            // prepare internal link syntax
-            $wrongT3Link = 't3://file?uid=' . $duplicateIds[0];
-            $correctT3Link = 't3://file?uid=' . $duplicateIds[1];
-
-            // update all know locations with possibly wrong links or uid references
-            $query = "update tt_content set header_link=replace(header_link, '" . $wrongT3Link . "', '" . $correctT3Link . "') where header_link ='". $wrongT3Link . "'";
-            $connectionContent->executeQuery($query);
-            $query = "update tt_content set bodytext=replace(bodytext, '" . $wrongT3Link . "', '" . $correctT3Link . "') where bodytext like '%". $wrongT3Link . "%'";
-            $connectionContent->executeQuery($query);
-
-            $query = "update tx_news_domain_model_news set bodytext=replace(bodytext, '" . $wrongT3Link . "', '" . $correctT3Link . "') where bodytext like '%". $wrongT3Link . "%'";
-            $connectionNews->executeQuery($query);
-            $query = "update tx_news_domain_model_news set internalurl=replace(internalurl, '" . $wrongT3Link . "', '" . $correctT3Link . "') where internalurl ='". $wrongT3Link . "'";
-            $connectionContent->executeQuery($query);
-
-            $query = 'update sys_file_reference set uid_local=' . $duplicateIds[1] . ' where uid_local=' . $duplicateIds[0];
-            $connectionSysFileReference->executeQuery($query);
-            $query = "update sys_file_reference set link=replace(link, '" . $wrongT3Link . "', '" . $correctT3Link . "') where link ='". $wrongT3Link . "'";
-            $connectionSysFileReference->executeQuery($query);
-
-            // finally delete wrongUids and corresponding duplicate metadata
-            $query = 'delete from sys_file_metadata where file=' . $duplicateIds[0];
-            $connectionSysFileMetadata->executeQuery($query);
-
-            $query = 'delete from sys_file where uid=' . $duplicateIds[0];
-            $connection->executeQuery($query);
+    private function updateReferencedRecord(int $originalUid, array $referenceRow)
+    {
+        if (empty($referenceRow['softref_key'])) {
+            $value = $originalUid;
+        } else {
+            $old = 't3://file?uid=' . $referenceRow['ref_uid'];
+            $new = 't3://file?uid=' . $originalUid;
+            $recordQueryBuilder = $this->connectionPool->getQueryBuilderForTable($referenceRow['tablename']);
+            $record = $recordQueryBuilder->select($referenceRow['field'])
+                ->from($referenceRow['tablename'])
+                ->where(
+                    $recordQueryBuilder->expr()->eq(
+                        'uid',
+                        $recordQueryBuilder->createNamedParameter($referenceRow['recuid'])
+                    )
+                )
+                ->execute()
+                ->fetch();
+            $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '\1', $record[$referenceRow['field']]);
         }
 
+        $recordUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable($referenceRow['tablename']);
+        $recordUpdateExpr = $recordUpdateQueryBuilder->expr();
+        $recordUpdateQueryBuilder->update($referenceRow['tablename'])
+            ->set($referenceRow['field'], $value)
+            ->where(
+                $recordUpdateExpr->eq(
+                    'uid',
+                    $recordUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_INT)
+                )
+            )
+            ->execute();
+    }
+
+    private function updateReference(int $originalUid, array $referenceRow)
+    {
+        $referenceUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_refindex');
+        $referenceUpdateExpr = $referenceUpdateQueryBuilder->expr();
+        $referenceUpdateQueryBuilder->update('sys_refindex')
+            ->set('ref_uid', $originalUid)
+            ->where(
+                $referenceUpdateExpr->eq(
+                    'hash',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['hash'], \PDO::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'tablename',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['tablename'], \PDO::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'recuid',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'field',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['field'], \PDO::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'ref_table',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_table'], \PDO::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'ref_uid',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_uid'], \PDO::PARAM_STR)
+                )
+            )
+            ->execute();
+    }
+
+    private function deleteOldFileRecord(int $oldFileUid)
+    {
+        $fileDeleteQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
+        $fileDeleteQueryBuilder->delete('sys_file')
+            ->where(
+                $fileDeleteQueryBuilder->expr()->eq(
+                    'uid',
+                    $fileDeleteQueryBuilder->createNamedParameter($oldFileUid, \PDO::PARAM_INT)
+                )
+            )
+            ->execute();
     }
 }
