@@ -180,8 +180,15 @@ class UnduplicateCommand extends Command
             ];
 
             if (!$this->dryRun) {
-                $this->updateReferencedRecord($originalUid, $referenceRow);
-                $this->updateReference($originalUid, $referenceRow);
+                if ($referenceRow['tablename'] === 'sys_file_metadata'
+                    && $this->metadataRecordExists($originalUid)
+                ) {
+                    $this->deleteReferencedRecord($referenceRow);
+                    $this->deleteReference($referenceRow);
+                } else {
+                    $this->updateReferencedRecord($originalUid, $referenceRow);
+                    $this->updateReference($originalUid, $referenceRow);
+                }
             }
         }
         $this->output->table($tableHeaders, $tableRows);
@@ -254,6 +261,70 @@ class UnduplicateCommand extends Command
                 )
             )
             ->execute();
+    }
+
+    private function deleteReferencedRecord(array $referenceRow)
+    {
+        $recordDeleteQueryBuilder = $this->connectionPool->getQueryBuilderForTable($referenceRow['tablename']);
+        $recordDeleteQueryBuilder->delete($referenceRow['tablename'])
+            ->where(
+                $recordDeleteQueryBuilder->expr()->eq(
+                    'uid',
+                    $recordDeleteQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_INT)
+                )
+            )
+            ->execute();
+    }
+
+    private function deleteReference(array $referenceRow)
+    {
+        $referenceDeleteQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_refindex');
+        $referenceDeleteExpr = $referenceDeleteQueryBuilder->expr();
+        $referenceDeleteQueryBuilder->delete('sys_refindex')
+            ->where(
+                $referenceDeleteExpr->eq(
+                    'hash',
+                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['hash'], \PDO::PARAM_STR)
+                ),
+                $referenceDeleteExpr->eq(
+                    'tablename',
+                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['tablename'], \PDO::PARAM_STR)
+                ),
+                $referenceDeleteExpr->eq(
+                    'recuid',
+                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_STR)
+                ),
+                $referenceDeleteExpr->eq(
+                    'field',
+                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['field'], \PDO::PARAM_STR)
+                ),
+                $referenceDeleteExpr->eq(
+                    'ref_table',
+                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['ref_table'], \PDO::PARAM_STR)
+                ),
+                $referenceDeleteExpr->eq(
+                    'ref_uid',
+                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['ref_uid'], \PDO::PARAM_STR)
+                )
+            )
+            ->execute();
+    }
+
+    private function metadataRecordExists(int $originalUid): bool
+    {
+        $metadataQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_metadata');
+        $count = $metadataQueryBuilder->count('*')
+            ->from('sys_file_metadata')
+            ->where(
+                $metadataQueryBuilder->expr()->eq(
+                    'file',
+                    $metadataQueryBuilder->createNamedParameter($originalUid, \PDO::PARAM_INT)
+                )
+            )
+            ->execute()
+            ->fetchColumn(0);
+
+        return $count > 0;
     }
 
     private function deleteOldFileRecord(int $oldFileUid)
