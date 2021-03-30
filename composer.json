@@ -7,6 +7,11 @@
     "ext-pdo": "*",
     "typo3/cms-core": "^8.7"
   },
+  "extra": {
+    "typo3/cms": {
+      "extension-key": "unduplicator"
+    }
+  },
   "autoload": {
     "psr-4": {
       "ElementareTeilchen\\Unduplicator\\": "Classes/"
