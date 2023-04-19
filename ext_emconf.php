@@ -16,14 +16,13 @@ $EM_CONF[$_EXTKEY] = array(
 	'modify_tables' => '',
 	'lockType' => '',
 	'author_company' => '',
-	'version' => '0.0.0',
-	'constraints' => array(
-		'depends' => array(
-		),
-		'conflicts' => array(
-		),
-		'suggests' => array(
-		),
-	),
+	'version' => '1.0.0-dev',
+	'constraints' => [
+		'depends' => [
+            'typo3' => '11.5.26-11.9.999'
+        ],
+		'conflicts' => [],
+		'suggests' => []
+    ],
 	'_md5_values_when_last_written' => '',
 );
