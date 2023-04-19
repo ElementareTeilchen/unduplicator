@@ -142,6 +142,9 @@ class UnduplicateCommand extends Command
                 continue;
             }
             $storage = (int) $row['storage'];
+            $count = (int)($row['COUNT(*)'] ?? 0);
+            $this->output->section(sprintf('Found %d duplicates for identifier="%s", storage=%s',
+                $count, $identifier, $storage));
             $files = $this->findDuplicateFilesForIdentifier($identifier, $storage);
             $originalUid = null;
             foreach ($files as $fileRow) {
@@ -202,7 +205,8 @@ class UnduplicateCommand extends Command
             return;
         }
 
-        $this->output->writeln('Unduplicate sys_file:' . $originalUid);
+        $this->output->writeln(sprintf('Unduplicate sys_file: %d (keep uid=%d)',
+            $oldFileUid, $originalUid));
         $tableHeaders = [
             'hash',
             'tablename',
