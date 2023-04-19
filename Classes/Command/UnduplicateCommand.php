@@ -82,6 +82,12 @@ class UnduplicateCommand extends Command
             null,
             InputOption::VALUE_NONE,
             'If set, all database updates are not executed'
+        )
+        ->addOption(
+                'identifier',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Only use this identifier'
         );
     }
 
@@ -97,13 +103,22 @@ class UnduplicateCommand extends Command
         $this->output->title($this->getDescription());
 
         $this->dryRun = $input->getOption('dry-run');
+        $onlyThisIdentifier = $input->getOption('identifier');
 
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
-        $statement = $queryBuilder->count('*')
+        $queryBuilder->count('*')
             ->addSelect('identifier', 'storage')
             ->from('sys_file')
             ->groupBy('identifier', 'storage')
-            ->having('COUNT(*) > 1')
+            ->having('COUNT(*) > 1');
+        if ($onlyThisIdentifier) {
+            $queryBuilder->where(
+                $queryBuilder->expr()->eq(
+                    'identifier', $queryBuilder->createNamedParameter($onlyThisIdentifier, \PDO::PARAM_STR)
+                )
+            );
+        }
+        $statement = $queryBuilder
             ->execute();
 
         while ($row = $statement->fetch()) {
