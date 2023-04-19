@@ -1,0 +1,14 @@
+services:
+  # general settings
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  ElementareTeilchen\Unduplicator\:
+    resource: '../Classes/*'
+
+  ElementareTeilchen\Unduplicator\Command\UnduplicateCommand:
+    tags:
+      - name: 'console.command'
+        command: 'unduplicate:sysfile'
