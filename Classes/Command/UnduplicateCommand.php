@@ -119,19 +119,19 @@ class UnduplicateCommand extends Command
             ->from('sys_file')
             ->groupBy('identifier', 'storage')
             ->having('COUNT(*) > 1');
+        $whereExpressions = [];
         if ($onlyThisIdentifier) {
-            $queryBuilder->where(
-                $queryBuilder->expr()->eq(
+            $whereExpressions[] = $queryBuilder->expr()->eq(
                     'identifier', $queryBuilder->createNamedParameter($onlyThisIdentifier, \PDO::PARAM_STR)
-                )
             );
         }
         if ($onlyThisStorage > -1) {
-            $queryBuilder->where(
-                $queryBuilder->expr()->eq(
+            $whereExpressions[] = $queryBuilder->expr()->eq(
                     'storage', $queryBuilder->createNamedParameter($onlyThisStorage, Connection::PARAM_INT)
-                )
             );
+        }
+        if ($whereExpressions) {
+            $queryBuilder->where(...$whereExpressions);
         }
         $statement = $queryBuilder
             ->execute();
@@ -156,6 +156,7 @@ class UnduplicateCommand extends Command
                 }
             }
         }
+        return 0;
     }
 
     private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array
