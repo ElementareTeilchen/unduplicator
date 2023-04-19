@@ -115,9 +115,13 @@ class UnduplicateCommand extends Command
 
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
         $queryBuilder->count('*')
-            ->addSelect('identifier', 'storage')
+            ->addSelect('identifier', 'storage', 'identifier_hash')
             ->from('sys_file')
-            ->groupBy('identifier', 'storage')
+            // since DB may have (probably has) case-insensitive collation, we must make sure we do a case-sensitive
+            // compare comparing the identifier_hash should work. Alternatively, BINARY can be used or additional
+            // added in PHP to check if identifier is really the same.
+            // !!! If the identifier_hash is not always updated, this may result in wrong results
+            ->groupBy('identifier', 'storage', 'identifier_hash')
             ->having('COUNT(*) > 1');
         $whereExpressions = [];
         if ($onlyThisIdentifier) {
@@ -138,14 +142,20 @@ class UnduplicateCommand extends Command
 
         while ($row = $statement->fetchAssociative()) {
             $identifier = $row['identifier'] ?? '';
-            if (!$identifier) {
+            if ($identifier === '') {
+                $this->output->warning('Found empty identifier');
+                continue;
+            }
+            $identifierHash = $row['identifier_hash'] ?? '';
+            if ($identifierHash === '') {
+                $this->output->warning('Found empty identifier_hash, identifier=' . $identifier);
                 continue;
             }
             $storage = (int) $row['storage'];
             $count = (int)($row['COUNT(*)'] ?? 0);
             $this->output->section(sprintf('Found %d duplicates for identifier="%s", storage=%s',
                 $count, $identifier, $storage));
-            $files = $this->findDuplicateFilesForIdentifier($identifier, $storage);
+            $files = $this->findDuplicateFilesForIdentifier($identifier, $storage, $identifierHash);
             $originalUid = null;
             foreach ($files as $fileRow) {
                 if ($originalUid === null) {
@@ -162,7 +172,7 @@ class UnduplicateCommand extends Command
         return 0;
     }
 
-    private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array
+    private function findDuplicateFilesForIdentifier(string $identifier, int $storage, string $identifierHash): array
     {
         $fileQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
 
@@ -175,8 +185,12 @@ class UnduplicateCommand extends Command
                 ),
                 $fileQueryBuilder->expr()->eq(
                     'storage',
-                    $fileQueryBuilder->createNamedParameter($identifier, Connection::PARAM_INT)
+                    $fileQueryBuilder->createNamedParameter($storage, Connection::PARAM_INT)
                 ),
+                $fileQueryBuilder->expr()->eq(
+                    'identifier_hash',
+                    $fileQueryBuilder->createNamedParameter($identifierHash)
+                )
             )
             ->orderBy('uid', 'DESC')
             ->execute()
