@@ -37,6 +37,14 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 /**
  * Symfony Command for unduplicating stuff like sys_file entries
  *
+ * since DB may have (probably has) case-insensitive collation, we must make sure we do a case-sensitive compare.
+ * The following can be used:
+ * (1) Also Comparing the identifier_hash should work ... but the identifier_hash may not always be set
+ * (2) using BINARY, e.g. where BINARY identifer ... but this cannot be used in "GROUP BY"
+ * (3) using md5(identifier) or other functions ... may make query less portable across DB servers
+ * (4) do extra compare in PHP
+ *   => (4) is safest option and used in this class (though it may be a little inefficient)
+
  * @package sysfile_unduplicator
  */
 class UnduplicateCommand extends Command
@@ -115,13 +123,9 @@ class UnduplicateCommand extends Command
 
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
         $queryBuilder->count('*')
-            ->addSelect('identifier', 'storage', 'identifier_hash')
+            ->addSelect('identifier', 'storage')
             ->from('sys_file')
-            // since DB may have (probably has) case-insensitive collation, we must make sure we do a case-sensitive
-            // compare. Comparing the identifier_hash should work. Alternatively, BINARY can be used or additional
-            // checks added in PHP to check if identifier is really the same.
-            // !!! If the identifier_hash is not always updated, this may result in wrong results
-            ->groupBy('identifier', 'storage', 'identifier_hash')
+            ->groupBy('identifier', 'storage')
             ->having('COUNT(*) > 1');
         $whereExpressions = [];
         if ($onlyThisIdentifier) {
@@ -146,21 +150,29 @@ class UnduplicateCommand extends Command
                 $this->output->warning('Found empty identifier');
                 continue;
             }
-            $identifierHash = $row['identifier_hash'] ?? '';
-            if ($identifierHash === '') {
-                $this->output->warning('Found empty identifier_hash, identifier=' . $identifier);
-                continue;
-            }
             $storage = (int) $row['storage'];
-            $count = (int)($row['COUNT(*)'] ?? 0);
-            $this->output->section(sprintf('Found %d duplicates for identifier="%s", storage=%s',
-                $count, $identifier, $storage));
-            $files = $this->findDuplicateFilesForIdentifier($identifier, $storage, $identifierHash);
+
+            $files = $this->findDuplicateFilesForIdentifier($identifier, $storage);
             $originalUid = null;
+            $originalIdentifier = null;
+            $showMessage = true;
             foreach ($files as $fileRow) {
+                $identifier = $fileRow['identifier'];
                 if ($originalUid === null) {
+                    $originalIdentifier = $identifier;
                     $originalUid = $fileRow['uid'];
                     continue;
+                }
+                if ($originalIdentifier != $identifier) {
+                    // identifier is not the same, skip this one (may happen because of case-insensitive DB queries)
+                    continue;
+                }
+
+                if ($showMessage) {
+                    // we do not show message before the loop because we don't know yet if all duplicates are really dupes
+                    $this->output->section(sprintf('Found duplicates for identifier="%s", storage=%s',
+                        $identifier, $storage));
+                    $showMessage = false;
                 }
 
                 $this->findAndUpdateReferences($originalUid, $fileRow['uid']);
@@ -172,11 +184,11 @@ class UnduplicateCommand extends Command
         return 0;
     }
 
-    private function findDuplicateFilesForIdentifier(string $identifier, int $storage, string $identifierHash): array
+    private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array
     {
         $fileQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
 
-        return $fileQueryBuilder->select('uid')
+        return $fileQueryBuilder->select('uid', 'identifier')
             ->from('sys_file')
             ->where(
                 $fileQueryBuilder->expr()->eq(
@@ -186,10 +198,6 @@ class UnduplicateCommand extends Command
                 $fileQueryBuilder->expr()->eq(
                     'storage',
                     $fileQueryBuilder->createNamedParameter($storage, Connection::PARAM_INT)
-                ),
-                $fileQueryBuilder->expr()->eq(
-                    'identifier_hash',
-                    $fileQueryBuilder->createNamedParameter($identifierHash)
                 )
             )
             ->orderBy('uid', 'DESC')

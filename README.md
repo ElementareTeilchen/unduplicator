@@ -36,3 +36,11 @@ php vendor/bin/typo3 unduplicate:sysfile --identifier <"identifier"> --storage <
 # For example:
 vendor/bin/typo3 unduplicate:sysfile --identifier <"identifier"> --storage <storage>
 ```
+
+## How duplicate check is done
+
+* check if sys_file.storage and sys_file.identifier is the same, but sys_file.uid is different
+* we must make sure comparing identifier is done case-sensitively, this may not be the case for DB queries. In order
+  to keep DB queries portable across different DB servers, we do an additional check in PHP.
+
+
