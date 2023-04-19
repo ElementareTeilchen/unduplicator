@@ -118,8 +118,8 @@ class UnduplicateCommand extends Command
             ->addSelect('identifier', 'storage', 'identifier_hash')
             ->from('sys_file')
             // since DB may have (probably has) case-insensitive collation, we must make sure we do a case-sensitive
-            // compare comparing the identifier_hash should work. Alternatively, BINARY can be used or additional
-            // added in PHP to check if identifier is really the same.
+            // compare. Comparing the identifier_hash should work. Alternatively, BINARY can be used or additional
+            // checks added in PHP to check if identifier is really the same.
             // !!! If the identifier_hash is not always updated, this may result in wrong results
             ->groupBy('identifier', 'storage', 'identifier_hash')
             ->having('COUNT(*) > 1');
