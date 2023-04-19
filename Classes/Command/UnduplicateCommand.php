@@ -136,7 +136,7 @@ class UnduplicateCommand extends Command
             )
             ->orderBy('uid', 'DESC')
             ->execute()
-            ->fetchAll();
+            ->fetchAllAssociative();
     }
 
     private function findAndUpdateReferences(int $originalUid, int $oldFileUid)
@@ -170,7 +170,7 @@ class UnduplicateCommand extends Command
             'softref_key',
         ];
         $tableRows = null;
-        while ($referenceRow = $referenceStatement->fetch()) {
+        while ($referenceRow = $referenceStatement->fetchAssociative()) {
             $tableRows[] = [
                 $referenceRow['hash'],
                 $referenceRow['tablename'],
@@ -211,7 +211,7 @@ class UnduplicateCommand extends Command
                     )
                 )
                 ->execute()
-                ->fetch();
+                ->fetchAssociative();
             $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '\1', $record[$referenceRow['field']]);
         }
 
@@ -322,7 +322,7 @@ class UnduplicateCommand extends Command
                 )
             )
             ->execute()
-            ->fetchColumn(0);
+            ->fetchOne();
 
         return $count > 0;
     }
