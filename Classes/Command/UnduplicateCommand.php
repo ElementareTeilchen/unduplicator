@@ -6,6 +6,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -99,14 +100,19 @@ class UnduplicateCommand extends Command
 
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
         $statement = $queryBuilder->count('*')
-            ->addSelect('identifier')
+            ->addSelect('identifier', 'storage')
             ->from('sys_file')
-            ->groupBy('identifier')
+            ->groupBy('identifier', 'storage')
             ->having('COUNT(*) > 1')
             ->execute();
 
         while ($row = $statement->fetch()) {
-            $files = $this->findDuplicateFilesForIdentifier($row['identifier']);
+            $identifier = $row['identifier'] ?? '';
+            if (!$identifier) {
+                continue;
+            }
+            $storage = (int) $row['storage'];
+            $files = $this->findDuplicateFilesForIdentifier($identifier, $storage);
             $originalUid = null;
             foreach ($files as $fileRow) {
                 if ($originalUid === null) {
@@ -122,7 +128,7 @@ class UnduplicateCommand extends Command
         }
     }
 
-    private function findDuplicateFilesForIdentifier(string $identifier): array
+    private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array
     {
         $fileQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
 
@@ -132,7 +138,11 @@ class UnduplicateCommand extends Command
                 $fileQueryBuilder->expr()->eq(
                     'identifier',
                     $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR)
-                )
+                ),
+                $fileQueryBuilder->expr()->eq(
+                    'storage',
+                    $fileQueryBuilder->createNamedParameter($identifier, Connection::PARAM_INT)
+                ),
             )
             ->orderBy('uid', 'DESC')
             ->execute()
