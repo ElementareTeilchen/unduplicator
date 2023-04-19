@@ -88,6 +88,13 @@ class UnduplicateCommand extends Command
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Only use this identifier'
+        )
+        ->addOption(
+            'storage',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Only use this storage',
+            -1
         );
     }
 
@@ -104,6 +111,7 @@ class UnduplicateCommand extends Command
 
         $this->dryRun = $input->getOption('dry-run');
         $onlyThisIdentifier = $input->getOption('identifier');
+        $onlyThisStorage = (int) $input->getOption('storage') ;
 
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
         $queryBuilder->count('*')
@@ -118,10 +126,17 @@ class UnduplicateCommand extends Command
                 )
             );
         }
+        if ($onlyThisStorage > -1) {
+            $queryBuilder->where(
+                $queryBuilder->expr()->eq(
+                    'storage', $queryBuilder->createNamedParameter($onlyThisStorage, Connection::PARAM_INT)
+                )
+            );
+        }
         $statement = $queryBuilder
             ->execute();
 
-        while ($row = $statement->fetch()) {
+        while ($row = $statement->fetchAssociative()) {
             $identifier = $row['identifier'] ?? '';
             if (!$identifier) {
                 continue;
