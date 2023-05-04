@@ -144,6 +144,10 @@ class UnduplicateCommand extends Command
         $statement = $queryBuilder
             ->execute();
 
+        if (!$statement->rowCount()) {
+            return 0;
+        }
+
         while ($row = $statement->fetchAssociative()) {
             $identifier = $row['identifier'] ?? '';
             if ($identifier === '') {
@@ -177,7 +181,7 @@ class UnduplicateCommand extends Command
                 }
             }
         }
-        return 0;
+        return 1;
     }
 
     private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array
