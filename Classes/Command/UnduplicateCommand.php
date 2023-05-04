@@ -163,7 +163,7 @@ class UnduplicateCommand extends Command
                     $originalUid = $fileRow['uid'];
                     continue;
                 }
-                if ($originalIdentifier != $identifier) {
+                if ($originalIdentifier !== $identifier) {
                     // identifier is not the same, skip this one (may happen because of case-insensitive DB queries)
                     continue;
                 }
