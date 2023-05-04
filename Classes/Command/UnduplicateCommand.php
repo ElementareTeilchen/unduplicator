@@ -155,9 +155,9 @@ class UnduplicateCommand extends Command
             $files = $this->findDuplicateFilesForIdentifier($identifier, $storage);
             $originalUid = null;
             $originalIdentifier = null;
-            $showMessage = true;
             foreach ($files as $fileRow) {
                 $identifier = $fileRow['identifier'];
+                // save uid and identifier of first entry (sort descending by uid, is newest)
                 if ($originalUid === null) {
                     $originalIdentifier = $identifier;
                     $originalUid = $fileRow['uid'];
@@ -168,15 +168,11 @@ class UnduplicateCommand extends Command
                     continue;
                 }
 
-                if ($showMessage) {
-                    // we do not show message before the loop because we don't know yet if all duplicates are really dupes
-                    $this->output->section(sprintf('Found duplicates for identifier="%s", storage=%s',
-                        $identifier, $storage));
-                    $showMessage = false;
-                }
-
-                $this->findAndUpdateReferences($originalUid, $fileRow['uid']);
+                $oldFileUid = (int)$fileRow['uid'];
+                $this->output->writeln(sprintf('Unduplicate sys_file: uid=%d identifier="%s", storage=%s (keep uid=%d)',
+                    $oldFileUid, $identifier, $storage, $originalUid));
                 if (!$this->dryRun) {
+                    $this->findAndUpdateReferences($originalUid, $oldFileUid);
                     $this->deleteOldFileRecord($fileRow['uid']);
                 }
             }
@@ -227,8 +223,6 @@ class UnduplicateCommand extends Command
             return;
         }
 
-        $this->output->writeln(sprintf('Unduplicate sys_file: %d (keep uid=%d)',
-            $oldFileUid, $originalUid));
         $tableHeaders = [
             'hash',
             'tablename',
