@@ -1,20 +1,43 @@
 {
-  "name": "elementareteilchen/unduplicator",
-  "type": "typo3-cms-extension",
-  "description": "Finds duplicates in sys_file and unduplicates them",
-  "require": {
-    "php": ">=7.0.0 || >=8.0.0",
-    "ext-pdo": "*",
-    "typo3/cms-core": "^11.5.26"
-  },
-  "extra": {
-    "typo3/cms": {
-      "extension-key": "unduplicator"
-    }
-  },
-  "autoload": {
-    "psr-4": {
-      "ElementareTeilchen\\Unduplicator\\": "Classes/"
-    }
-  }
+	"name": "elementareteilchen/unduplicator",
+	"type": "typo3-cms-extension",
+	"description": "Finds duplicates in sys_file and unduplicates them",
+	"require": {
+		"php": ">=7.0.0 || >=8.0.0",
+		"ext-pdo": "*",
+		"typo3/cms-core": "^11.5.26"
+	},
+	"extra": {
+		"typo3/cms": {
+			"extension-key": "unduplicator",
+			"web-dir": ".Build/Web"
+		}
+	},
+	"autoload": {
+		"psr-4": {
+			"ElementareTeilchen\\Unduplicator\\": "Classes/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"ElementareTeilchen\\Unduplicator\\Tests\\": "Tests/"
+		}
+	},
+	"config": {
+		"sort-packages": true,
+		"vendor-dir": ".Build/vendor",
+		"bin-dir": ".Build/bin",
+		"allow-plugins": {
+			"typo3/cms-composer-installers": true,
+			"typo3/class-alias-loader": true
+		}
+	},
+	"scripts": {
+		"post-autoload-dump": [
+			"TYPO3\\TestingFramework\\Composer\\ExtensionTestEnvironment::prepare"
+		]
+	},
+	"require-dev": {
+		"typo3/testing-framework": "^6"
+	}
 }
