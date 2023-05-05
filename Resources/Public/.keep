@@ -1,0 +1,6 @@
+Resources/Public is necessary so that the extension is installed into .Build/Web/typo3conf/ext
+when setting up test environment.
+
+See https://review.typo3.org/c/Packages/TYPO3.CMS/+/71029/7/typo3/sysext/core/Documentation/Changelog/11.4/Feature-94996-ConsiderAllComposerInstalledExtensionsAsActive.rst#70
+
+TYPO3 v11 2023-05-05
