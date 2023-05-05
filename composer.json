@@ -32,12 +32,8 @@
 			"typo3/class-alias-loader": true
 		}
 	},
-	"scripts": {
-		"post-autoload-dump": [
-			"TYPO3\\TestingFramework\\Composer\\ExtensionTestEnvironment::prepare"
-		]
-	},
 	"require-dev": {
-		"typo3/testing-framework": "^6"
+		"phpunit/phpunit": "^9",
+		"typo3/testing-framework": "6.16.5"
 	}
 }
