@@ -27,21 +27,6 @@ services:
     tmpfs:
       - /var/lib/postgresql/data:rw,noexec,nosuid
 
-  composer_coreversion_require:
-    image: typo3/core-testing-${DOCKER_PHP_IMAGE}:latest
-    user: ${HOST_UID}
-    volumes:
-      - ${ROOT_DIR}:${ROOT_DIR}
-    working_dir: ${ROOT_DIR}
-    environment:
-      COMPOSER_CACHE_DIR: ".Build/.cache/composer"
-    command: >
-      /bin/sh -c "
-        if [ ${SCRIPT_VERBOSE} -eq 1 ]; then
-          set -x
-        fi
-        composer require --no-progress --no-interaction --no-install typo3/minimal:"${CORE_VERSION}";
-      "
   composer_install:
     image: typo3/core-testing-${DOCKER_PHP_IMAGE}:latest
     user: ${HOST_UID}
@@ -56,57 +41,6 @@ services:
           set -x
         fi
         composer install --no-progress --no-interaction;
-      "
-  composer_install_max:
-    image: typo3/core-testing-${DOCKER_PHP_IMAGE}:latest
-    user: ${HOST_UID}
-    volumes:
-      - ${ROOT_DIR}:${ROOT_DIR}
-    working_dir: ${ROOT_DIR}
-    environment:
-      COMPOSER_CACHE_DIR: ".Build/.cache/composer"
-    command: >
-      /bin/sh -c "
-        if [ ${SCRIPT_VERBOSE} -eq 1 ]; then
-          set -x
-        fi
-        if [ ${PHP_VERSION} == "8.0" ]; then
-          composer req --dev typo3/cms-core:"dev-main" \
-            typo3/cms-backend:"dev-main" \
-            typo3/cms-frontend:"dev-main" \
-            typo3/cms-extbase:"dev-main" \
-            typo3/cms-fluid:"dev-main" \
-            typo3/cms-recordlist:"dev-main"
-        fi
-        composer config --unset platform.php;
-        composer update --no-progress --no-interaction;
-        composer dumpautoload;
-      "
-
-  composer_install_min:
-    image: typo3/core-testing-${DOCKER_PHP_IMAGE}:latest
-    user: ${HOST_UID}
-    volumes:
-      - ${ROOT_DIR}:${ROOT_DIR}
-    working_dir: ${ROOT_DIR}
-    environment:
-      COMPOSER_CACHE_DIR: ".Build/.cache/composer"
-    command: >
-      /bin/sh -c "
-        if [ ${SCRIPT_VERBOSE} -eq 1 ]; then
-          set -x
-        fi
-        if [ ${PHP_VERSION} == "8.0" ]; then
-          composer req --dev typo3/cms-core:"dev-main" \
-            typo3/cms-backend:"dev-main" \
-            typo3/cms-frontend:"dev-main" \
-            typo3/cms-extbase:"dev-main" \
-            typo3/cms-fluid:"dev-main" \
-            typo3/cms-recordlist:"dev-main"
-        fi
-        composer config platform.php ${PHP_VERSION}.0;
-        composer update --prefer-lowest --no-progress --no-interaction;
-        composer dumpautoload;
       "
 
   composer_validate:

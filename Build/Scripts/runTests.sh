@@ -28,7 +28,6 @@ setUpDockerComposeDotEnv() {
         echo "HOST_HOME=${HOME}"
 
         # Your local user
-        echo "CORE_VERSION=${CORE_VERSION}"
         echo "ROOT_DIR=${ROOT_DIR}"
         echo "HOST_USER=${USER}"
         echo "TEST_FILE=${TEST_FILE}"
@@ -163,7 +162,6 @@ if ! command -v realpath &> /dev/null; then
 else
   ROOT_DIR=`realpath ${PWD}/../../`
 fi
-CORE_VERSION="11.5"
 TEST_SUITE="unit"
 DBMS="mariadb"
 PHP_VERSION="8.1"
@@ -184,9 +182,6 @@ while getopts ":s:t:d:p:e:xy:huvn" OPT; do
     case ${OPT} in
         s)
             TEST_SUITE=${OPTARG}
-            ;;
-        t)
-            CORE_VERSION=${OPTARG}
             ;;
         d)
             DBMS=${OPTARG}
