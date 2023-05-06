@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# todo: Some command are deactivated because they need further configuration files
+# - cgl:  Add Build/.php-cs-fixer.php
+# - phpstan: add Build/phpstan/phpstan.neon
+# - unit: Add xml and bootstrap file in Buidl/phpunit
+
 # copied from EXT:enetcache (and modified):
 #  https://github.com/lolli42/enetcache/blob/master/Build/Scripts/runTests.sh
 # based on: https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/Testing/ExtensionTesting.html
@@ -62,21 +67,12 @@ Options:
             - cleanBuild: clean up build related files and folders (composer.lock, .Build, etc.)
             - composerInstall: "composer install"
             - composerValidate: "composer validate"
-            - composerCoreVersion: "composer require --no-install typo3/minimal:"coreVersion"
-            - cgl: test and fix all core php files
-            - cglGit: test and fix latest committed patch for CGL compliance
+            #- cgl: test and fix all core php files
             - lint: PHP linting
-            - phpstan: phpstan tests
-            - phpstanGenerateBaseline: regenerate phpstan baseline, handy after phpstan updates
-            - unit (default): PHP unit tests
+            #- phpstan: phpstan tests
+            #- phpstanGenerateBaseline: regenerate phpstan baseline, handy after phpstan updates
+            #- unit (default): PHP unit tests
             - functional: functional tests
-
-
-    -t <composer-core-version-constraint>
-        Only with -s composerCoreVersion
-        Specifies the Typo3 core version to be used
-            - '^11.5' (default)
-            - ...
 
     -d <mariadb|mssql|postgres|sqlite>
         Only with -s functional
@@ -86,7 +82,7 @@ Options:
             - postgres: use postgres
             - sqlite: use sqlite
 
-    -p <7.2|7.3|7.4|8.0|8.1>
+    -p <7.4|8.0|8.1>
         Specifies the PHP minor version to be used
             - 7.2 (default): use PHP 7.2
             - 7.3: use PHP 7.3
@@ -112,7 +108,7 @@ Options:
         is not listening on default port.
 
     -n
-        Only with -s cgl|cglGit
+        Only with -s cgl
         Activate dry-run in CGL check that does not actively change files and only prints broken ones.
 
     -u
@@ -265,26 +261,9 @@ case ${TEST_SUITE} in
                 ( cd ../../ && composer config --unset platform ); \
                 echo "done (removed composer.lock, .Build, platform from composer.json)"
         ;;
-    composerCoreVersion)
-        setUpDockerComposeDotEnv
-        docker-compose run composer_coreversion_require
-        SUITE_EXIT_CODE=$?
-        ;;
     composerInstall)
         setUpDockerComposeDotEnv
         docker-compose run composer_install
-        SUITE_EXIT_CODE=$?
-        docker-compose down
-        ;;
-    composerInstallMax)
-        setUpDockerComposeDotEnv
-        docker-compose run composer_install_max
-        SUITE_EXIT_CODE=$?
-        docker-compose down
-        ;;
-    composerInstallMin)
-        setUpDockerComposeDotEnv
-        docker-compose run composer_install_min
         SUITE_EXIT_CODE=$?
         docker-compose down
         ;;
@@ -294,23 +273,16 @@ case ${TEST_SUITE} in
         SUITE_EXIT_CODE=$?
         docker-compose down
         ;;
-    cgl)
-        # Active dry-run for cglAll needs not "-n" but specific options
-        if [[ ! -z ${CGLCHECK_DRY_RUN} ]]; then
-            CGLCHECK_DRY_RUN="--dry-run --diff"
-        fi
-        setUpDockerComposeDotEnv
-        docker-compose run cgl_all
-        SUITE_EXIT_CODE=$?
-        docker-compose down
-        ;;
-    cglGit)
-        # Active dry-run for cglAll needs not "-n" but specific options
-        setUpDockerComposeDotEnv
-        docker-compose run cgl_git
-        SUITE_EXIT_CODE=$?
-        docker-compose down
-        ;;
+#    cgl)
+#        # Active dry-run for cglAll needs not "-n" but specific options
+#        if [[ ! -z ${CGLCHECK_DRY_RUN} ]]; then
+#            CGLCHECK_DRY_RUN="--dry-run --diff"
+#        fi
+#        setUpDockerComposeDotEnv
+#        docker-compose run cgl_all
+#        SUITE_EXIT_CODE=$?
+#        docker-compose down
+#        ;;
     functional)
         setUpDockerComposeDotEnv
         case ${DBMS} in
@@ -349,24 +321,24 @@ case ${TEST_SUITE} in
         SUITE_EXIT_CODE=$?
         docker-compose down
         ;;
-    phpstan)
-        setUpDockerComposeDotEnv
-        docker-compose run phpstan
-        SUITE_EXIT_CODE=$?
-        docker-compose down
-        ;;
-    phpstanGenerateBaseline)
-        setUpDockerComposeDotEnv
-        docker-compose run phpstan_generate_baseline
-        SUITE_EXIT_CODE=$?
-        docker-compose down
-        ;;
-    unit)
-        setUpDockerComposeDotEnv
-        docker-compose run unit
-        SUITE_EXIT_CODE=$?
-        docker-compose down
-        ;;
+#    phpstan)
+#        setUpDockerComposeDotEnv
+#        docker-compose run phpstan
+#        SUITE_EXIT_CODE=$?
+#        docker-compose down
+#        ;;
+#    phpstanGenerateBaseline)
+#        setUpDockerComposeDotEnv
+#        docker-compose run phpstan_generate_baseline
+#        SUITE_EXIT_CODE=$?
+#        docker-compose down
+#        ;;
+#    unit)
+#        setUpDockerComposeDotEnv
+#        docker-compose run unit
+#        SUITE_EXIT_CODE=$?
+#        docker-compose down
+#        ;;
     update)
         # pull typo3gmbh/phpXY:latest versions of those ones that exist locally
         docker images typo3gmbh/php*:latest --format "{{.Repository}}:latest" | xargs -I {} docker pull {}

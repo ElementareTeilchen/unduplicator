@@ -204,20 +204,6 @@ services:
         fi
       "
 
-  cgl_git:
-    image: typo3/core-testing-${DOCKER_PHP_IMAGE}:latest
-    user: "${HOST_UID}"
-    volumes:
-      - ${ROOT_DIR}:${ROOT_DIR}
-    working_dir: ${ROOT_DIR}
-    command: >
-      /bin/sh -c "
-        if [ ${SCRIPT_VERBOSE} -eq 1 ]; then
-          set -x
-        fi
-        Build/Scripts/cglFixMyCommit.sh ${CGLCHECK_DRY_RUN};
-      "
-
   cgl_all:
     image: typo3/core-testing-${DOCKER_PHP_IMAGE}:latest
     user: ${HOST_UID}
