@@ -59,9 +59,8 @@ No arguments: Run all unit tests with PHP 7.2
 Options:
     -s <...>
         Specifies which test suite to run
+            - cleanBuild: clean up build related files and folders (composer.lock, .Build, etc.)
             - composerInstall: "composer install"
-            - composerInstallMax: "composer update", with no platform.php config.
-            - composerInstallMin: "composer update --prefer-lowest", with platform.php set to PHP version x.x.0.
             - composerValidate: "composer validate"
             - composerCoreVersion: "composer require --no-install typo3/minimal:"coreVersion"
             - cgl: test and fix all core php files
@@ -71,6 +70,7 @@ Options:
             - phpstanGenerateBaseline: regenerate phpstan baseline, handy after phpstan updates
             - unit (default): PHP unit tests
             - functional: functional tests
+
 
     -t <composer-core-version-constraint>
         Only with -s composerCoreVersion
@@ -258,6 +258,13 @@ fi
 
 # Suite execution
 case ${TEST_SUITE} in
+    cleanBuild)
+        echo -n "Clean build ... " ; \
+                rm -Rf ../../.Build \
+                  ../../composer.lock; \
+                ( cd ../../ && composer config --unset platform ); \
+                echo "done (removed composer.lock, .Build, platform from composer.json)"
+        ;;
     composerCoreVersion)
         setUpDockerComposeDotEnv
         docker-compose run composer_coreversion_require
