@@ -35,10 +35,5 @@
 	"require-dev": {
 		"phpunit/phpunit": "^9",
 		"typo3/testing-framework": "6.16.5"
-	},
-	"scripts": {
-		"post-autoload-dump": [
-			"TYPO3\\TestingFramework\\Composer\\ExtensionTestEnvironment::prepare"
-		]
 	}
 }

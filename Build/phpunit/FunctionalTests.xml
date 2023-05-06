@@ -1,5 +1,7 @@
 <!--
-    Boilerplate for a functional test suite setup.
+   source: typo3/testing-framework/Resources/Core/Functional/
+
+    Functional test suite setup.
 
     This file is loosely maintained within TYPO3 testing-framework, extensions
     are encouraged to not use it directly, but to copy it to an own place,
@@ -38,23 +40,12 @@
     <testsuites>
         <testsuite name="Functional tests">
             <!--
-                This path either needs an adaption in extensions, or an extension's
-                test location path needs to be given to phpunit.
+                Path for functional tests (relative to Build dir, e.g. .Build/Web)
             -->
             <directory>../../Tests/Functional/</directory>
         </testsuite>
     </testsuites>
     <php>
-        <!--
-            @deprecated: Set this to not suppress warnings, notices and deprecations in functional tests
-                         with TYPO3 core v11 and up.
-                         Will always be done with next major version.
-                         To still suppress warnings, notices and deprecations, do NOT define the constant at all.
-            @todo Upgrade BrokenLinkRepository to incorporate core v11 changes and avoid deprecation messages, which
-                  are silenced away. Afterwards define following constant to find out which other places needs to be
-                  fixed and are silenced through error handler usage.
-            <const name="TYPO3_TESTING_FUNCTIONAL_REMOVE_ERROR_HANDLER" value="true" />
-         -->
         <ini name="display_errors" value="1" />
         <ini name="error_reporting" value="E_ALL" />
         <env name="TYPO3_CONTEXT" value="Testing" />

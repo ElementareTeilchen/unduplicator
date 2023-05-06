@@ -147,7 +147,7 @@ class UnduplicateCommand extends Command
         if (!$statement->rowCount()) {
             return 0;
         }
-
+        $foundDuplidates = 0;
         while ($row = $statement->fetchAssociative()) {
             $identifier = $row['identifier'] ?? '';
             if ($identifier === '') {
@@ -171,6 +171,7 @@ class UnduplicateCommand extends Command
                     // identifier is not the same, skip this one (may happen because of case-insensitive DB queries)
                     continue;
                 }
+                $foundDuplidates++;
 
                 $oldFileUid = (int)$fileRow['uid'];
                 $this->output->writeln(sprintf('Unduplicate sys_file: uid=%d identifier="%s", storage=%s (keep uid=%d)',
@@ -181,7 +182,7 @@ class UnduplicateCommand extends Command
                 }
             }
         }
-        return 1;
+        return $foundDuplidates === 0 ? 0 : 1;
     }
 
     private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array

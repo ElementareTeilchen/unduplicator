@@ -1,5 +1,9 @@
 # test tasks for GitHub CI
 
+# todo: add checks for composer validate, lint, phpstan, etc.
+# todo: for unit tests, copy the files typo3/testing-framework/Resources/Core/Build/UnitTests.xml
+#   and typo3/testing-framework/Resources/Core/Build/UnitTestsBootstrap.php to Build/phpunit
+
 name: CI
 
 on:
