@@ -1,5 +1,4 @@
 services:
-  # general settings
   _defaults:
     autowire: true
     autoconfigure: true
