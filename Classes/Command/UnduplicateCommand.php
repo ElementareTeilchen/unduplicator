@@ -144,9 +144,6 @@ class UnduplicateCommand extends Command
         $statement = $queryBuilder
             ->execute();
 
-        if (!$statement->rowCount()) {
-            return 0;
-        }
         $foundDuplidates = 0;
         while ($row = $statement->fetchAssociative()) {
             $identifier = $row['identifier'] ?? '';
