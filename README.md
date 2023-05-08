@@ -28,7 +28,8 @@ php vendor/bin/typo3 unduplicate:sysfile
 
 php vendor/bin/typo3 referenceindex:update
 ```
-> For **non-composer-mode** the path to the CLI script is `typo3/sysext/core/bin/typo3`
+> **Note**
+> For non-composer-mode the path to the CLI script is `typo3/sysext/core/bin/typo3`
 > 
 > 
 If you want to run the unduplicator only for a specific storage or even identifier (found by dry-run):
