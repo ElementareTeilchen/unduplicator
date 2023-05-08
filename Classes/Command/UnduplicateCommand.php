@@ -158,7 +158,7 @@ class UnduplicateCommand extends Command
             $originalIdentifier = null;
             foreach ($files as $fileRow) {
                 $identifier = $fileRow['identifier'];
-                // save uid and identifier of first entry (sort descending by uid, is newest)
+                // save uid and identifier of latest entry (sort descending by uid), which we want to keep
                 if ($originalUid === null) {
                     $originalIdentifier = $identifier;
                     $originalUid = $fileRow['uid'];
@@ -179,7 +179,10 @@ class UnduplicateCommand extends Command
                 }
             }
         }
-        return $foundDuplidates === 0 ? 0 : 1;
+        if (!$foundDuplidates) {
+            $this->output->success('No duplicates found');
+        }
+        return 0;
     }
 
     private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array
