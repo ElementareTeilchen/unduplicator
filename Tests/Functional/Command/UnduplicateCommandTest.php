@@ -54,7 +54,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
         $result = $this->executeConsoleCommand('unduplicate:sysfile');
 
         $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_RESULT.csv');
-        self::assertEquals(1, $result['status']);
+        self::assertEquals(0, $result['status']);
     }
 
 
@@ -69,7 +69,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
 
         // the references are updated, so that the newer sys_file entry (uid=2) is used
         $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references_RESULT.csv');
-        self::assertEquals(1, $result['status']);
+        self::assertEquals(0, $result['status']);
     }
 
 
