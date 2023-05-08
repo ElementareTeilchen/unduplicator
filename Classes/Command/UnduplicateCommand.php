@@ -6,6 +6,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -36,6 +37,14 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 /**
  * Symfony Command for unduplicating stuff like sys_file entries
  *
+ * since DB may have (probably has) case-insensitive collation, we must make sure we do a case-sensitive compare.
+ * The following can be used:
+ * (1) Also Comparing the identifier_hash should work ... but the identifier_hash may not always be set
+ * (2) using BINARY, e.g. where BINARY identifer ... but this cannot be used in "GROUP BY"
+ * (3) using md5(identifier) or other functions ... may make query less portable across DB servers
+ * (4) do extra compare in PHP
+ *   => (4) is safest option and used in this class (though it may be a little inefficient)
+
  * @package sysfile_unduplicator
  */
 class UnduplicateCommand extends Command
@@ -81,6 +90,19 @@ class UnduplicateCommand extends Command
             null,
             InputOption::VALUE_NONE,
             'If set, all database updates are not executed'
+        )
+        ->addOption(
+                'identifier',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Only use this identifier'
+        )
+        ->addOption(
+            'storage',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Only use this storage',
+            -1
         );
     }
 
@@ -96,47 +118,89 @@ class UnduplicateCommand extends Command
         $this->output->title($this->getDescription());
 
         $this->dryRun = $input->getOption('dry-run');
+        $onlyThisIdentifier = $input->getOption('identifier');
+        $onlyThisStorage = (int) $input->getOption('storage') ;
 
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
-        $statement = $queryBuilder->count('*')
-            ->addSelect('identifier')
+        $queryBuilder->count('*')
+            ->addSelect('identifier', 'storage')
             ->from('sys_file')
-            ->groupBy('identifier')
-            ->having('COUNT(*) > 1')
+            ->groupBy('identifier', 'storage')
+            ->having('COUNT(*) > 1');
+        $whereExpressions = [];
+        if ($onlyThisIdentifier) {
+            $whereExpressions[] = $queryBuilder->expr()->eq(
+                    'identifier', $queryBuilder->createNamedParameter($onlyThisIdentifier, \PDO::PARAM_STR)
+            );
+        }
+        if ($onlyThisStorage > -1) {
+            $whereExpressions[] = $queryBuilder->expr()->eq(
+                    'storage', $queryBuilder->createNamedParameter($onlyThisStorage, Connection::PARAM_INT)
+            );
+        }
+        if ($whereExpressions) {
+            $queryBuilder->where(...$whereExpressions);
+        }
+        $statement = $queryBuilder
             ->execute();
 
-        while ($row = $statement->fetch()) {
-            $files = $this->findDuplicateFilesForIdentifier($row['identifier']);
+        $foundDuplidates = 0;
+        while ($row = $statement->fetchAssociative()) {
+            $identifier = $row['identifier'] ?? '';
+            if ($identifier === '') {
+                $this->output->warning('Found empty identifier');
+                continue;
+            }
+            $storage = (int) $row['storage'];
+
+            $files = $this->findDuplicateFilesForIdentifier($identifier, $storage);
             $originalUid = null;
+            $originalIdentifier = null;
             foreach ($files as $fileRow) {
+                $identifier = $fileRow['identifier'];
+                // save uid and identifier of first entry (sort descending by uid, is newest)
                 if ($originalUid === null) {
+                    $originalIdentifier = $identifier;
                     $originalUid = $fileRow['uid'];
                     continue;
                 }
+                if ($originalIdentifier !== $identifier) {
+                    // identifier is not the same, skip this one (may happen because of case-insensitive DB queries)
+                    continue;
+                }
+                $foundDuplidates++;
 
-                $this->findAndUpdateReferences($originalUid, $fileRow['uid']);
+                $oldFileUid = (int)$fileRow['uid'];
+                $this->output->writeln(sprintf('Unduplicate sys_file: uid=%d identifier="%s", storage=%s (keep uid=%d)',
+                    $oldFileUid, $identifier, $storage, $originalUid));
                 if (!$this->dryRun) {
+                    $this->findAndUpdateReferences($originalUid, $oldFileUid);
                     $this->deleteOldFileRecord($fileRow['uid']);
                 }
             }
         }
+        return $foundDuplidates === 0 ? 0 : 1;
     }
 
-    private function findDuplicateFilesForIdentifier(string $identifier): array
+    private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array
     {
         $fileQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
 
-        return $fileQueryBuilder->select('uid')
+        return $fileQueryBuilder->select('uid', 'identifier')
             ->from('sys_file')
             ->where(
                 $fileQueryBuilder->expr()->eq(
                     'identifier',
                     $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR)
+                ),
+                $fileQueryBuilder->expr()->eq(
+                    'storage',
+                    $fileQueryBuilder->createNamedParameter($storage, Connection::PARAM_INT)
                 )
             )
             ->orderBy('uid', 'DESC')
             ->execute()
-            ->fetchAll();
+            ->fetchAllAssociative();
     }
 
     private function findAndUpdateReferences(int $originalUid, int $oldFileUid)
@@ -161,7 +225,6 @@ class UnduplicateCommand extends Command
             return;
         }
 
-        $this->output->writeln('Unduplicate sys_file:' . $originalUid);
         $tableHeaders = [
             'hash',
             'tablename',
@@ -170,7 +233,7 @@ class UnduplicateCommand extends Command
             'softref_key',
         ];
         $tableRows = null;
-        while ($referenceRow = $referenceStatement->fetch()) {
+        while ($referenceRow = $referenceStatement->fetchAssociative()) {
             $tableRows[] = [
                 $referenceRow['hash'],
                 $referenceRow['tablename'],
@@ -211,7 +274,7 @@ class UnduplicateCommand extends Command
                     )
                 )
                 ->execute()
-                ->fetch();
+                ->fetchAssociative();
             $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '\1', $record[$referenceRow['field']]);
         }
 
@@ -322,7 +385,7 @@ class UnduplicateCommand extends Command
                 )
             )
             ->execute()
-            ->fetchColumn(0);
+            ->fetchOne();
 
         return $count > 0;
     }

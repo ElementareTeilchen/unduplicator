@@ -1,0 +1,43 @@
+# test tasks for GitHub CI
+
+# !!! todo: functional test with sqlite fails, is activated for now.
+# todo: add checks for composer validate, lint, phpstan, etc.
+# todo: for unit tests, copy the files typo3/testing-framework/Resources/Core/Build/UnitTests.xml
+#   and typo3/testing-framework/Resources/Core/Build/UnitTestsBootstrap.php to Build/phpunit
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+
+  all_core_11:
+    name: "all core-11"
+    runs-on: ubuntu-20.04
+    strategy:
+      # This prevents cancellation of matrix job runs, if one/two already failed and let the
+      # rest of the matrix jobs be executed anyway.
+      fail-fast: false
+      matrix:
+        php: [ '7.4', '8.0', '8.1' ]
+        minMax: [ 'composerInstall']
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v2
+
+      - name: "Composer"
+        run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -s ${{ matrix.minMax }}
+
+      - name: "Functional tests with mariadb"
+        if: always()
+        run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -d mariadb -s functional
+
+      #- name: "Functional tests with sqlite (nightly or pull_request)"
+      #  if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'pull_request' ) }}
+      #  run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -d sqlite -s functional
+
+      - name: "Functional tests with postgres (nightly or pull_request)"
+        if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'pull_request' ) }}
+        run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -d postgres -s functional

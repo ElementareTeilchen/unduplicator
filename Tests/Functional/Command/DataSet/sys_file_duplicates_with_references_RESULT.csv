@@ -1,0 +1,9 @@
+"sys_file",,,
+,"uid","identifier","storage"
+,2,"/test/abc.jpg",1
+"sys_refindex",,,,,,,
+,"hash","tablename","recuid","field","softref_key","ref_table","ref_uid"
+,"507cf53279411321324cd2f424e0681e","tt_content","1","bodytext","typolink_tag","sys_file","2"
+"tt_content",
+,"uid","bodytext"
+,1,'<a href="t3://file?uid=2">link</a>'
