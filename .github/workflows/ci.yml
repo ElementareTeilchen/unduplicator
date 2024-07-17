@@ -25,7 +25,7 @@ jobs:
         minMax: [ 'composerInstall']
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: "Composer"
         run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -s ${{ matrix.minMax }}
