@@ -1,7 +1,7 @@
 # unduplicator
 Finds and fixes duplicates of sys_file entries pointing to the same file. Merges all references to point to the remaining sys_file entry.
 
-Tested successfully with TYPO3 v11.
+Tested successfully with TYPO3 v12.
 
 ## Warning
 Older versions for TYPO3 v8 may not consider identifiers with mixed case or sys_file
