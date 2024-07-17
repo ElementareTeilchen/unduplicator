@@ -1,26 +1,23 @@
 <?php
+
 declare(strict_types=1);
+
 namespace ElementareTeilchen\Unduplicator\Tests\Functional\Command;
 
+use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 class UnduplicateCommandTest extends FunctionalTestCase
 {
-
-    /**
-     * @test
-     */
-    public function unduplicateCommandReturnsZeroIfNoDuplicates()
+    #[Test] public function unduplicateCommandReturnsZeroIfNoDuplicates()
     {
         $result = $this->executeConsoleCommand('unduplicate:sysfile');
         self::assertEquals(0, $result['status']);
     }
 
-    /**
-     * @test
-     */
-    public function unduplicateCommandIgnoresNonDuplicates()
+    #[Test] public function unduplicateCommandIgnoresNonDuplicates()
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_non_duplicates.csv');
 
@@ -31,10 +28,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
-    /**
-     * @test
-     */
-    public function unduplicateCommandIgnoresNonDuplicatesByCase()
+    #[Test] public function unduplicateCommandIgnoresNonDuplicatesByCase()
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_non_duplicates_case_sensitive.csv');
 
@@ -44,10 +38,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
-    /**
-     * @test
-     */
-    public function unduplicateCommandFixesDuplicates()
+    #[Test] public function unduplicateCommandFixesDuplicates()
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates.csv');
 
@@ -58,10 +49,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
     }
 
 
-    /**
-     * @test
-     */
-    public function unduplicateCommandFixesDuplicatesWithReferences()
+    #[Test] public function unduplicateCommandFixesDuplicatesWithReferences()
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references.csv');
 
@@ -81,13 +69,13 @@ class UnduplicateCommandTest extends FunctionalTestCase
     {
         $typo3File = __DIR__ . '/../../../.Build/bin/typo3';
         if (!file_exists($typo3File)) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 sprintf('Executable file <typo3> not found (using path <%s>). Make sure config:bin-dir is set to .Build/bin in composer.json', $typo3File)
             );
         }
 
         $cmd = vsprintf(PHP_BINARY . ' ' . $typo3File
-            . ' ' . $cmdline, array_map('escapeshellarg', $args));
+            . ' ' . $cmdline, array_map(escapeshellarg(...), $args));
 
         $output = '';
 

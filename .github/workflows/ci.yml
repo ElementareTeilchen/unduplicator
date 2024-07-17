@@ -13,19 +13,19 @@ on:
 
 jobs:
 
-  all_core_11:
-    name: "all core-11"
-    runs-on: ubuntu-20.04
+  all_core_12:
+    name: "all core-12"
+    runs-on: ubuntu-22.04
     strategy:
       # This prevents cancellation of matrix job runs, if one/two already failed and let the
       # rest of the matrix jobs be executed anyway.
       fail-fast: false
       matrix:
-        php: [ '7.4', '8.0', '8.1' ]
+        php: [ '8.2', '8.3', '8.4' ]
         minMax: [ 'composerInstall']
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: "Composer"
         run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -s ${{ matrix.minMax }}

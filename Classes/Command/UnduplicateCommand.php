@@ -1,6 +1,8 @@
 <?php
+
 namespace ElementareTeilchen\Unduplicator\Command;
 
+use PDO;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -76,7 +78,8 @@ class UnduplicateCommand extends Command
     public function configure()
     {
         $this->setDescription('Finds duplicates in sys_file and unduplicates them');
-        $this->setHelp('currently fix references in ' . LF .
+        $this->setHelp(
+            'currently fix references in ' . LF .
             '- sys_file_reference::link ' . LF .
             '- sys_file_reference::uid_local ' . LF .
             '- tt_content::headerlink ' . LF .
@@ -92,10 +95,10 @@ class UnduplicateCommand extends Command
             'If set, all database updates are not executed'
         )
         ->addOption(
-                'identifier',
-                null,
-                InputOption::VALUE_REQUIRED,
-                'Only use this identifier'
+            'identifier',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Only use this identifier'
         )
         ->addOption(
             'storage',
@@ -112,7 +115,7 @@ class UnduplicateCommand extends Command
      * @param InputInterface $input
      * @param OutputInterface $output
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->output = new SymfonyStyle($input, $output);
         $this->output->title($this->getDescription());
@@ -130,19 +133,21 @@ class UnduplicateCommand extends Command
         $whereExpressions = [];
         if ($onlyThisIdentifier) {
             $whereExpressions[] = $queryBuilder->expr()->eq(
-                    'identifier', $queryBuilder->createNamedParameter($onlyThisIdentifier, \PDO::PARAM_STR)
+                'identifier',
+                $queryBuilder->createNamedParameter($onlyThisIdentifier, PDO::PARAM_STR)
             );
         }
         if ($onlyThisStorage > -1) {
             $whereExpressions[] = $queryBuilder->expr()->eq(
-                    'storage', $queryBuilder->createNamedParameter($onlyThisStorage, Connection::PARAM_INT)
+                'storage',
+                $queryBuilder->createNamedParameter($onlyThisStorage, Connection::PARAM_INT)
             );
         }
         if ($whereExpressions) {
             $queryBuilder->where(...$whereExpressions);
         }
         $statement = $queryBuilder
-            ->execute();
+            ->executeQuery();
 
         $foundDuplidates = 0;
         while ($row = $statement->fetchAssociative()) {
@@ -171,8 +176,13 @@ class UnduplicateCommand extends Command
                 $foundDuplidates++;
 
                 $oldFileUid = (int)$fileRow['uid'];
-                $this->output->writeln(sprintf('Unduplicate sys_file: uid=%d identifier="%s", storage=%s (keep uid=%d)',
-                    $oldFileUid, $identifier, $storage, $originalUid));
+                $this->output->writeln(sprintf(
+                    'Unduplicate sys_file: uid=%d identifier="%s", storage=%s (keep uid=%d)',
+                    $oldFileUid,
+                    $identifier,
+                    $storage,
+                    $originalUid
+                ));
                 if (!$this->dryRun) {
                     $this->findAndUpdateReferences($originalUid, $oldFileUid);
                     $this->deleteOldFileRecord($fileRow['uid']);
@@ -194,15 +204,13 @@ class UnduplicateCommand extends Command
             ->where(
                 $fileQueryBuilder->expr()->eq(
                     'identifier',
-                    $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR)
+                    $fileQueryBuilder->createNamedParameter($identifier, PDO::PARAM_STR)
                 ),
                 $fileQueryBuilder->expr()->eq(
                     'storage',
                     $fileQueryBuilder->createNamedParameter($storage, Connection::PARAM_INT)
                 )
-            )
-            ->orderBy('uid', 'DESC')
-            ->execute()
+            )->orderBy('uid', 'DESC')->executeQuery()
             ->fetchAllAssociative();
     }
 
@@ -222,7 +230,7 @@ class UnduplicateCommand extends Command
                     $referenceQueryBuilder->createNamedParameter($oldFileUid)
                 )
             )
-            ->execute();
+            ->executeQuery();
 
         if (!$referenceStatement->rowCount()) {
             return;
@@ -276,8 +284,7 @@ class UnduplicateCommand extends Command
                         $recordQueryBuilder->createNamedParameter($referenceRow['recuid'])
                     )
                 )
-                ->execute()
-                ->fetchAssociative();
+                ->executeQuery()->fetchAssociative();
             $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '\1', $record[$referenceRow['field']]);
         }
 
@@ -288,10 +295,9 @@ class UnduplicateCommand extends Command
             ->where(
                 $recordUpdateExpr->eq(
                     'uid',
-                    $recordUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_INT)
+                    $recordUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], PDO::PARAM_INT)
                 )
-            )
-            ->execute();
+            )->executeStatement();
     }
 
     private function updateReference(int $originalUid, array $referenceRow)
@@ -299,34 +305,25 @@ class UnduplicateCommand extends Command
         $referenceUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_refindex');
         $referenceUpdateExpr = $referenceUpdateQueryBuilder->expr();
         $referenceUpdateQueryBuilder->update('sys_refindex')
-            ->set('ref_uid', $originalUid)
-            ->where(
-                $referenceUpdateExpr->eq(
-                    'hash',
-                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['hash'], \PDO::PARAM_STR)
-                ),
-                $referenceUpdateExpr->eq(
-                    'tablename',
-                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['tablename'], \PDO::PARAM_STR)
-                ),
-                $referenceUpdateExpr->eq(
-                    'recuid',
-                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_STR)
-                ),
-                $referenceUpdateExpr->eq(
-                    'field',
-                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['field'], \PDO::PARAM_STR)
-                ),
-                $referenceUpdateExpr->eq(
-                    'ref_table',
-                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_table'], \PDO::PARAM_STR)
-                ),
-                $referenceUpdateExpr->eq(
-                    'ref_uid',
-                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_uid'], \PDO::PARAM_STR)
-                )
-            )
-            ->execute();
+            ->set('ref_uid', $originalUid)->where($referenceUpdateExpr->eq(
+                'hash',
+                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['hash'], PDO::PARAM_STR)
+            ), $referenceUpdateExpr->eq(
+                'tablename',
+                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['tablename'], PDO::PARAM_STR)
+            ), $referenceUpdateExpr->eq(
+                'recuid',
+                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], PDO::PARAM_STR)
+            ), $referenceUpdateExpr->eq(
+                'field',
+                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['field'], PDO::PARAM_STR)
+            ), $referenceUpdateExpr->eq(
+                'ref_table',
+                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_table'], PDO::PARAM_STR)
+            ), $referenceUpdateExpr->eq(
+                'ref_uid',
+                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_uid'], PDO::PARAM_STR)
+            ))->executeStatement();
     }
 
     private function deleteReferencedRecord(array $referenceRow)
@@ -336,44 +333,35 @@ class UnduplicateCommand extends Command
             ->where(
                 $recordDeleteQueryBuilder->expr()->eq(
                     'uid',
-                    $recordDeleteQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_INT)
+                    $recordDeleteQueryBuilder->createNamedParameter($referenceRow['recuid'], PDO::PARAM_INT)
                 )
             )
-            ->execute();
+        ->executeStatement();
     }
 
     private function deleteReference(array $referenceRow)
     {
         $referenceDeleteQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_refindex');
         $referenceDeleteExpr = $referenceDeleteQueryBuilder->expr();
-        $referenceDeleteQueryBuilder->delete('sys_refindex')
-            ->where(
-                $referenceDeleteExpr->eq(
-                    'hash',
-                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['hash'], \PDO::PARAM_STR)
-                ),
-                $referenceDeleteExpr->eq(
-                    'tablename',
-                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['tablename'], \PDO::PARAM_STR)
-                ),
-                $referenceDeleteExpr->eq(
-                    'recuid',
-                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_STR)
-                ),
-                $referenceDeleteExpr->eq(
-                    'field',
-                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['field'], \PDO::PARAM_STR)
-                ),
-                $referenceDeleteExpr->eq(
-                    'ref_table',
-                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['ref_table'], \PDO::PARAM_STR)
-                ),
-                $referenceDeleteExpr->eq(
-                    'ref_uid',
-                    $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['ref_uid'], \PDO::PARAM_STR)
-                )
-            )
-            ->execute();
+        $referenceDeleteQueryBuilder->delete('sys_refindex')->where($referenceDeleteExpr->eq(
+            'hash',
+            $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['hash'], PDO::PARAM_STR)
+        ), $referenceDeleteExpr->eq(
+            'tablename',
+            $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['tablename'], PDO::PARAM_STR)
+        ), $referenceDeleteExpr->eq(
+            'recuid',
+            $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['recuid'], PDO::PARAM_STR)
+        ), $referenceDeleteExpr->eq(
+            'field',
+            $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['field'], PDO::PARAM_STR)
+        ), $referenceDeleteExpr->eq(
+            'ref_table',
+            $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['ref_table'], PDO::PARAM_STR)
+        ), $referenceDeleteExpr->eq(
+            'ref_uid',
+            $referenceDeleteQueryBuilder->createNamedParameter($referenceRow['ref_uid'], PDO::PARAM_STR)
+        ))->executeStatement();
     }
 
     private function metadataRecordExists(int $originalUid): bool
@@ -384,10 +372,10 @@ class UnduplicateCommand extends Command
             ->where(
                 $metadataQueryBuilder->expr()->eq(
                     'file',
-                    $metadataQueryBuilder->createNamedParameter($originalUid, \PDO::PARAM_INT)
+                    $metadataQueryBuilder->createNamedParameter($originalUid, PDO::PARAM_INT)
                 )
             )
-            ->execute()
+            ->executeQuery()
             ->fetchOne();
 
         return $count > 0;
@@ -400,9 +388,9 @@ class UnduplicateCommand extends Command
             ->where(
                 $fileDeleteQueryBuilder->expr()->eq(
                     'uid',
-                    $fileDeleteQueryBuilder->createNamedParameter($oldFileUid, \PDO::PARAM_INT)
+                    $fileDeleteQueryBuilder->createNamedParameter($oldFileUid, PDO::PARAM_INT)
                 )
             )
-            ->execute();
+            ->executeStatement();
     }
 }
