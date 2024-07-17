@@ -49,8 +49,8 @@ handleDbmsOptions() {
                 echo "Use \".Build/Scripts/runTests.sh -h\" to display help and valid options" >&2
                 exit 1
             fi
-            [ -z "${DBMS_VERSION}" ] && DBMS_VERSION="10.4"
-            if ! [[ ${DBMS_VERSION} =~ ^(10.4|10.5|10.6|10.7|10.8|10.9|10.10|10.11|11.0|11.1|11.2|11.3|11.4)$ ]]; then
+            [ -z "${DBMS_VERSION}" ] && DBMS_VERSION="10.3"
+            if ! [[ ${DBMS_VERSION} =~ ^(10.3|10.4|10.5|10.6|10.7|10.8|10.9|10.10|10.11|11.0|11.1|11.2|11.3|11.4)$ ]]; then
                 echo "Invalid combination -d ${DBMS} -i ${DBMS_VERSION}" >&2
                 echo >&2
                 echo "Use \".Build/Scripts/runTests.sh -h\" to display help and valid options" >&2
@@ -161,6 +161,9 @@ cleanRenderedDocumentationFiles() {
 
 getPhpImageVersion() {
     case ${1} in
+        8.1)
+            echo -n "2.12"
+            ;;
         8.2)
             echo -n "1.12"
             ;;
@@ -194,16 +197,20 @@ Options:
             - cglGit: test and fix latest committed patch for CGL compliance
             - cglHeader: test and fix file header for all core php files
             - cglHeaderGit: test and fix latest committed patch for CGL file header compliance
+            - checkAnnotations: check php code for allowed annotations
             - checkBom: check UTF-8 files do not contain BOM
             - checkComposer: check composer.json files for version integrity
+            - checkExceptionCodes: test core for duplicate exception codes
             - checkExtensionScannerRst: test all .rst files referenced by extension scanner exist
             - checkFilePathLength: test core file paths do not exceed maximum length
             - checkGitSubmodule: test core git has no sub modules defined
             - checkGruntClean: Verify "grunt build" is clean. Warning: Executes git commands! Usually used in CI only.
-            - checkIntegrityPhp: check php code for with registered integrity rules
             - checkIsoDatabase: Verify "updateIsoDatabase.php" does not change anything.
+            - checkNamespaceIntegrity: Verify namespace integrity in class and test code files are in good shape.
             - checkPermissions: test some core files for correct executable bits
             - checkRst: test .rst files for integrity
+            - checkTestClassFinal: check test case classes are final
+            - checkTestMethodsPrefix: check tests methods do not start with "test"
             - clean: clean up build, cache and testing related files and folders
             - cleanBuild: clean up build related files and folders
             - cleanCache: clean up cache related files and folders
@@ -258,7 +265,8 @@ Options:
     -i version
         Specify a specific database version
         With "-d mariadb":
-            - 10.4   short-term, maintained until 2024-06-18 (default)
+            - 10.3   short-term, maintained until 2023-05-25 (default)
+            - 10.4   short-term, maintained until 2024-06-18
             - 10.5   short-term, maintained until 2025-06-24
             - 10.6   long-term, maintained until 2026-06
             - 10.7   short-term, no longer maintained
@@ -291,17 +299,12 @@ Options:
         Hack functional or acceptance tests into #numberOfChunks pieces and run tests of #chunk.
         Example -c 3/13
 
-    -p <8.2|8.3|8.4>
+    -p <8.1|8.2|8.3|8.4>
         Specifies the PHP minor version to be used
-            - 8.2 (default): use PHP 8.2
+            - 8.1 (default): use PHP 8.1
+            - 8.2: use PHP 8.2
             - 8.3: use PHP 8.3
             - 8.4: use PHP 8.4
-
-    -t sets|systemplate
-        Only with -s acceptance|acceptanceComposer
-        Specifies which frontend rendering mechanism should be used
-            - sets: (default): use site sets
-            - systemplate: use sys_template records
 
     -g
         Only with -s acceptance|acceptanceComposer|acceptanceInstall
@@ -330,21 +333,21 @@ Options:
         Show this help.
 
 Examples:
-    # Run all core unit tests using PHP 8.2
+    # Run all core unit tests using PHP 8.1
     ./Build/Scripts/runTests.sh
     ./Build/Scripts/runTests.sh -s unit
 
     # Run all core units tests and enable xdebug (have a PhpStorm listening on port 9003!)
     ./Build/Scripts/runTests.sh -x
 
-    # Run unit tests in phpunit with xdebug on PHP 8.3 and filter for test filterByValueRecursiveCorrectlyFiltersArray
-    ./Build/Scripts/runTests.sh -x -p 8.3 -- --filter filterByValueRecursiveCorrectlyFiltersArray
+    # Run unit tests in phpunit with xdebug on PHP 8.1 and filter for test filterByValueRecursiveCorrectlyFiltersArray
+    ./Build/Scripts/runTests.sh -x -p 8.1 -- --filter filterByValueRecursiveCorrectlyFiltersArray
 
     # Run functional tests in phpunit with a filtered test method name in a specified file
     ./Build/Scripts/runTests.sh -s functional -- --filter aTestName path/to/fileTest.php
 
-    # Run functional tests on postgres with xdebug, php 8.3 and execute a restricted set of tests
-    ./Build/Scripts/runTests.sh -x -p 8.3 -s functional -d postgres typo3/sysext/core/Tests/Functional/Authentication
+    # Run functional tests on postgres with xdebug, php 8.1 and execute a restricted set of tests
+    ./Build/Scripts/runTests.sh -x -p 8.1 -s functional -d postgres typo3/sysext/core/Tests/Functional/Authentication
 
     # Run functional tests on postgres 11
     ./Build/Scripts/runTests.sh -s functional -d postgres -i 11
@@ -376,8 +379,6 @@ if ! type "docker" >/dev/null 2>&1 && ! type "podman" >/dev/null 2>&1; then
     echo "This script relies on docker or podman. Please install" >&2
     exit 1
 fi
-DBMS=mariadb
-VERBOSE=1
 
 # Go to the directory this script is located, so everything else is relative
 # to this dir, no matter from where this script is called, then go up two dirs.
@@ -390,17 +391,16 @@ CORE_ROOT="${PWD}"
 TEST_SUITE="unit"
 DBMS="sqlite"
 DBMS_VERSION=""
-PHP_VERSION="8.2"
+PHP_VERSION="8.1"
 PHP_XDEBUG_ON=0
 PHP_XDEBUG_PORT=9003
 ACCEPTANCE_HEADLESS=1
-ACCEPTANCE_TOPIC="sets"
 CGLCHECK_DRY_RUN=""
 DATABASE_DRIVER=""
 CHUNKS=0
 THISCHUNK=0
 CONTAINER_BIN=""
-COMPOSER_ROOT_VERSION="13.3.x-dev"
+COMPOSER_ROOT_VERSION="12.4.x-dev"
 PHPSTAN_CONFIG_FILE="phpstan.local.neon"
 CONTAINER_INTERACTIVE="-it --init"
 HOST_UID=$(id -u)
@@ -417,7 +417,7 @@ OPTIND=1
 # Array for invalid options
 INVALID_OPTIONS=()
 # Simple option parsing based on getopts (! not getopt)
-while getopts ":a:b:s:c:d:i:t:p:xy:nhug" OPT; do
+while getopts ":a:b:s:c:d:i:p:xy:nhug" OPT; do
     case ${OPT} in
         s)
             TEST_SUITE=${OPTARG}
@@ -448,15 +448,12 @@ while getopts ":a:b:s:c:d:i:t:p:xy:nhug" OPT; do
             ;;
         p)
             PHP_VERSION=${OPTARG}
-            if ! [[ ${PHP_VERSION} =~ ^(8.2|8.3|8.4)$ ]]; then
+            if ! [[ ${PHP_VERSION} =~ ^(8.1|8.2|8.3|8.4)$ ]]; then
                 INVALID_OPTIONS+=("${OPTARG}")
             fi
             ;;
         g)
             ACCEPTANCE_HEADLESS=0
-            ;;
-        t)
-            ACCEPTANCE_TOPIC=${OPTARG}
             ;;
         x)
             PHP_XDEBUG_ON=1
@@ -572,9 +569,9 @@ fi
 # Suite execution
 case ${TEST_SUITE} in
     acceptance)
-        CODECEPION_ENV="--env ci,classic,${ACCEPTANCE_TOPIC}"
+        CODECEPION_ENV="--env ci,classic"
         if [ "${ACCEPTANCE_HEADLESS}" -eq 1 ]; then
-            CODECEPION_ENV="--env ci,classic,headless,${ACCEPTANCE_TOPIC}"
+            CODECEPION_ENV="--env ci,classic,headless"
         fi
         if [ "${CHUNKS}" -gt 0 ]; then
             ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name ac-splitter-${SUFFIX} ${IMAGE_PHP} php -dxdebug.mode=off Build/Scripts/splitAcceptanceTests.php -v ${CHUNKS}
@@ -668,12 +665,12 @@ case ${TEST_SUITE} in
                 ;;
         esac
 
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name acceptance-prepare ${XDEBUG_MODE} -e COMPOSER_CACHE_DIR=${CORE_ROOT}/.cache/composer -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${PREPAREPARAMS} ${IMAGE_PHP} "${CORE_ROOT}/Build/Scripts/setupAcceptanceComposer.sh" "typo3temp/var/tests/acceptance-composer" sqlite "" "${ACCEPTANCE_TOPIC}"
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name acceptance-prepare ${XDEBUG_MODE} -e COMPOSER_CACHE_DIR=${CORE_ROOT}/.cache/composer -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${PREPAREPARAMS} ${IMAGE_PHP} "${CORE_ROOT}/Build/Scripts/setupAcceptanceComposer.sh" "typo3temp/var/tests/acceptance-composer"
         SUITE_EXIT_CODE=$?
         if [[ ${SUITE_EXIT_CODE} -eq 0 ]]; then
-            CODECEPION_ENV="--env ci,composer,${ACCEPTANCE_TOPIC}"
+            CODECEPION_ENV="--env ci,composer"
             if [ "${ACCEPTANCE_HEADLESS}" -eq 1 ]; then
-                CODECEPION_ENV="--env ci,composer,headless,${ACCEPTANCE_TOPIC}"
+                CODECEPION_ENV="--env ci,composer,headless"
             fi
             if [ "${CHUNKS}" -gt 0 ]; then
                 ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name ac-splitter-${SUFFIX} ${IMAGE_PHP} php -dxdebug.mode=off Build/Scripts/splitAcceptanceTests.php -v ${CHUNKS}
@@ -822,8 +819,16 @@ case ${TEST_SUITE} in
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name cgl-header-git-${SUFFIX} ${IMAGE_PHP} Build/Scripts/cglFixMyCommitFileHeader.sh ${CGLCHECK_DRY_RUN}
         SUITE_EXIT_CODE=$?
         ;;
-    checkIntegrityPhp)
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name check-annotations-${SUFFIX} ${XDEBUG_MODE} -e XDEBUG_CONFIG="${XDEBUG_CONFIG}" ${IMAGE_PHP} php Build/Scripts/phpIntegrityChecker.php -p ${PHP_VERSION}
+    checkAnnotations)
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name check-annotations-${SUFFIX} ${IMAGE_PHP} php -dxdebug.mode=off Build/Scripts/annotationChecker.php
+        SUITE_EXIT_CODE=$?
+        ;;
+    checkTestClassFinal)
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name check-test-classes-final-${SUFFIX} ${IMAGE_PHP} php -dxdebug.mode=off Build/Scripts/testClassFinalChecker.php
+        SUITE_EXIT_CODE=$?
+        ;;
+    checkTestMethodsPrefix)
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name check-test-methods-prefix-${SUFFIX} ${IMAGE_PHP} php -dxdebug.mode=off Build/Scripts/testMethodPrefixChecker.php
         SUITE_EXIT_CODE=$?
         ;;
     checkBom)
@@ -832,6 +837,10 @@ case ${TEST_SUITE} in
         ;;
     checkComposer)
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name check-composer-${SUFFIX} ${IMAGE_PHP} php -dxdebug.mode=off Build/Scripts/checkIntegrityComposer.php
+        SUITE_EXIT_CODE=$?
+        ;;
+    checkExceptionCodes)
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name check-exception-codes-${SUFFIX} ${IMAGE_PHP} Build/Scripts/duplicateExceptionCodeCheck.sh
         SUITE_EXIT_CODE=$?
         ;;
     checkExtensionScannerRst)
@@ -855,6 +864,10 @@ case ${TEST_SUITE} in
     checkIsoDatabase)
         COMMAND="git checkout -- composer.json; git checkout -- composer.lock; php -dxdebug.mode=off Build/Scripts/updateIsoDatabase.php; git add *; git status; git status | grep -q \"nothing to commit, working tree clean\""
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name check-iso-database-${SUFFIX} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
+        SUITE_EXIT_CODE=$?
+        ;;
+    checkNamespaceIntegrity)
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name check-namespaces-${SUFFIX} ${IMAGE_PHP} php -dxdebug.mode=off Build/Scripts/checkNamespaceIntegrity.php
         SUITE_EXIT_CODE=$?
         ;;
     checkPermissions)
@@ -915,9 +928,9 @@ case ${TEST_SUITE} in
     functional)
         if [ "${CHUNKS}" -gt 0 ]; then
             ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name func-splitter-${SUFFIX} ${IMAGE_PHP} php -dxdebug.mode=off Build/Scripts/splitFunctionalTests.php -v ${CHUNKS}
-            COMMAND=(.Build/bin/phpunit -c Build/phpunit/FunctionalTests-Job-${THISCHUNK}.xml --exclude-group not-${DBMS} "$@")
+            COMMAND=(bin/phpunit -c Build/phpunit/FunctionalTests-Job-${THISCHUNK}.xml --exclude-group not-${DBMS} "$@")
         else
-            COMMAND=(.Build/bin/phpunit -c Build/phpunit/FunctionalTests.xml --exclude-group not-${DBMS} "$@")
+            COMMAND=(bin/phpunit -c Build/phpunit/FunctionalTests.xml --exclude-group not-${DBMS} "$@")
         fi
         ${CONTAINER_BIN} run --rm ${CI_PARAMS} --name redis-func-${SUFFIX} --network ${NETWORK} -d ${IMAGE_REDIS} >/dev/null
         ${CONTAINER_BIN} run --rm ${CI_PARAMS} --name memcached-func-${SUFFIX} --network ${NETWORK} -d ${IMAGE_MEMCACHED} >/dev/null
