@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <!--
    source: typo3/testing-framework/Resources/Core/Functional/
 
@@ -15,39 +16,33 @@
     file is located next to this .xml as FunctionalTestsBootstrap.php
 
 -->
-<phpunit
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd"
-    backupGlobals="true"
-    bootstrap="FunctionalTestsBootstrap.php"
-    cacheResult="false"
-    colors="true"
-    convertErrorsToExceptions="true"
-    convertWarningsToExceptions="true"
-    convertDeprecationsToExceptions="true"
-    convertNoticesToExceptions="true"
-    forceCoversAnnotation="false"
-    processIsolation="false"
-    stopOnError="false"
-    stopOnFailure="false"
-    stopOnIncomplete="false"
-    stopOnSkipped="false"
-    verbose="false"
-    beStrictAboutTestsThatDoNotTestAnything="false"
-    failOnWarning="true"
-    failOnRisky="true"
->
-    <testsuites>
-        <testsuite name="Functional tests">
-            <!--
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.2/phpunit.xsd"
+         backupGlobals="true"
+         bootstrap="FunctionalTestsBootstrap.php"
+         cacheResult="false"
+         colors="true"
+         processIsolation="false"
+         stopOnError="false"
+         stopOnFailure="false"
+         stopOnIncomplete="false"
+         stopOnSkipped="false"
+         beStrictAboutTestsThatDoNotTestAnything="false"
+         failOnWarning="true"
+         failOnRisky="true"
+         cacheDirectory=".phpunit.cache"
+         requireCoverageMetadata="false">
+  <testsuites>
+    <testsuite name="Functional tests">
+      <!--
                 Path for functional tests (relative to Build dir, e.g. .Build/Web)
             -->
-            <directory>../../Tests/Functional/</directory>
-        </testsuite>
-    </testsuites>
-    <php>
-        <ini name="display_errors" value="1" />
-        <ini name="error_reporting" value="E_ALL" />
-        <env name="TYPO3_CONTEXT" value="Testing" />
-    </php>
+      <directory>../../Tests/Functional/</directory>
+    </testsuite>
+  </testsuites>
+  <php>
+    <ini name="display_errors" value="1"/>
+    <ini name="error_reporting" value="E_ALL"/>
+    <env name="TYPO3_CONTEXT" value="Testing"/>
+  </php>
 </phpunit>
