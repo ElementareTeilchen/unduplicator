@@ -8,6 +8,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -122,7 +123,7 @@ class UnduplicateCommand extends Command
 
         $this->dryRun = $input->getOption('dry-run');
         $onlyThisIdentifier = $input->getOption('identifier');
-        $onlyThisStorage = (int) $input->getOption('storage') ;
+        $onlyThisStorage = (int)$input->getOption('storage');
 
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
         $queryBuilder->count('*')
@@ -156,7 +157,7 @@ class UnduplicateCommand extends Command
                 $this->output->warning('Found empty identifier');
                 continue;
             }
-            $storage = (int) $row['storage'];
+            $storage = (int)$row['storage'];
 
             $files = $this->findDuplicateFilesForIdentifier($identifier, $storage);
             $originalUid = null;
@@ -185,7 +186,8 @@ class UnduplicateCommand extends Command
                 ));
                 if (!$this->dryRun) {
                     $this->findAndUpdateReferences($originalUid, $oldFileUid);
-                    $this->deleteOldFileRecord($fileRow['uid']);
+                    $this->deleteOldFileRecord($oldFileUid);
+                    $this->findAndDeleteOldProcessedFile($oldFileUid);
                 }
             }
         }
@@ -336,7 +338,7 @@ class UnduplicateCommand extends Command
                     $recordDeleteQueryBuilder->createNamedParameter($referenceRow['recuid'], PDO::PARAM_INT)
                 )
             )
-        ->executeStatement();
+            ->executeStatement();
     }
 
     private function deleteReference(array $referenceRow)
@@ -392,5 +394,47 @@ class UnduplicateCommand extends Command
                 )
             )
             ->executeStatement();
+    }
+
+    private function findAndDeleteOldProcessedFile(int $oldFileUid): void
+    {
+        $recordQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_processedfile');
+        $results = $recordQueryBuilder->select('identifier')
+            ->from('sys_file_processedfile')
+            ->where(
+                $recordQueryBuilder->expr()->eq(
+                    'original',
+                    $recordQueryBuilder->createNamedParameter($oldFileUid)
+                )
+            )
+            ->executeQuery();
+        while ($record = $results->fetchAssociative()) {
+            // delete each file from file system
+            $this->output->writeln('Deleting processed file: ' . $record['identifier']);
+            $this->deleteProcessedFile($record['identifier']);
+        }
+        // delete all records in sys_file_processedfile
+        $recordQueryBuilder->delete('sys_file_processedfile')
+            ->where(
+                $recordQueryBuilder->expr()->eq(
+                    'original',
+                    $recordQueryBuilder->createNamedParameter($oldFileUid, PDO::PARAM_INT)
+                )
+            )
+            ->executeStatement();
+    }
+
+    private function deleteProcessedFile(mixed $identifier): void
+    {
+        $file = Environment::getPublicPath() . "/fileadmin" . $identifier;
+        if (file_exists($file)) {
+            unlink($file);
+            // delete all empty parent folders
+            $dir = dirname($file);
+            while ($dir !== Environment::getPublicPath() . "/fileadmin" && count(scandir($dir)) === 2) {
+                rmdir($dir);
+                $dir = dirname($dir);
+            }
+        }
     }
 }
