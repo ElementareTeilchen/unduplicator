@@ -60,6 +60,25 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
+    /**
+     * Provide a processed file for the test run, so that it can be deleted
+     * @var array<string, string>
+     */
+    protected array $pathsToProvideInTestInstance = [
+        'typo3/sysext/frontend/Resources/Public/Icons/Extension.svg' => 'fileadmin/_processed_/3/c/csm_myfile_975bcb8fba.jpg',
+    ];
+
+    #[Test] public function unduplicateCommandFixesDuplicatesWithProcessedFiles()
+    {
+        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_processed_files.csv');
+
+        $result = $this->executeConsoleCommand('unduplicate:sysfile');
+
+        // the processed files are updated, so that the newer sys_file entry (uid=2) is used
+        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_processed_files_RESULT.csv');
+        self::assertEquals(0, $result['status']);
+    }
+
 
     /**
      * based on TYPO3\CMS\Core\Tests\Functional\Command\AbstractCommandTest::executeConsoleCommand
