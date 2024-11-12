@@ -11,9 +11,11 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 class UnduplicateCommandTest extends FunctionalTestCase
 {
+    const BASE_COMMAND = 'unduplicate:sysfile -n';
+
     #[Test] public function unduplicateCommandReturnsZeroIfNoDuplicates()
     {
-        $result = $this->executeConsoleCommand('unduplicate:sysfile');
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND);
         self::assertEquals(0, $result['status']);
     }
 
@@ -21,7 +23,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_non_duplicates.csv');
 
-        $result = $this->executeConsoleCommand('unduplicate:sysfile');
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND);
 
         // Should be no changes in the DB
         $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_non_duplicates.csv');
@@ -32,7 +34,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_non_duplicates_case_sensitive.csv');
 
-        $result = $this->executeConsoleCommand('unduplicate:sysfile');
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND);
         // Should be no changes in the DB
         $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_non_duplicates_case_sensitive.csv');
         self::assertEquals(0, $result['status']);
@@ -42,7 +44,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates.csv');
 
-        $result = $this->executeConsoleCommand('unduplicate:sysfile');
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND);
 
         $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_RESULT.csv');
         self::assertEquals(0, $result['status']);
@@ -53,10 +55,22 @@ class UnduplicateCommandTest extends FunctionalTestCase
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references.csv');
 
-        $result = $this->executeConsoleCommand('unduplicate:sysfile');
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND);
 
         // the references are updated, so that the newer sys_file entry (uid=2) is used
         $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references_RESULT.csv');
+        self::assertEquals(0, $result['status']);
+    }
+
+
+    #[Test] public function unduplicateCommandFixesDuplicatesWithMetadata()
+    {
+        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata.csv');
+
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND);
+
+        // the references are updated, so that the newer sys_file entry (uid=2) is used
+        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_RESULT.csv');
         self::assertEquals(0, $result['status']);
     }
 
@@ -72,7 +86,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_processed_files.csv');
 
-        $result = $this->executeConsoleCommand('unduplicate:sysfile');
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND);
 
         // the processed files are updated, so that the newer sys_file entry (uid=2) is used
         $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_processed_files_RESULT.csv');
