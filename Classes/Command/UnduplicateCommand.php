@@ -381,8 +381,6 @@ class UnduplicateCommand extends Command
         if (empty($referenceRow['softref_key'])) {
             $value = $masterFileUid;
         } else {
-            $old = 't3://file?uid=' . $referenceRow['ref_uid'];
-            $new = 't3://file?uid=' . $masterFileUid;
             $recordQueryBuilder = $this->connectionPool->getQueryBuilderForTable($referenceRow['tablename']);
             $record = $recordQueryBuilder->select($referenceRow['field'])
                 ->from($referenceRow['tablename'])
@@ -393,7 +391,21 @@ class UnduplicateCommand extends Command
                     )
                 )
                 ->executeQuery()->fetchAssociative();
-            $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '\1', $record[$referenceRow['field']]);
+
+            $value = $record[$referenceRow['field']];
+
+            // update file references
+            $old = 't3://file?uid=' . $referenceRow['ref_uid'];
+            $new = 't3://file?uid=' . $masterFileUid;
+            $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '\1', $value);
+
+            // update rte_ckeditor_image references
+            if (ExtensionManagementUtility::isLoaded('rte_ckeditor_image')) {
+                // replace data-htmlarea-file-uid="312421"
+                $old = 'data-htmlarea-file-uid="' . $referenceRow['ref_uid'] . '"';
+                $new = 'data-htmlarea-file-uid="' . $masterFileUid . '"';
+                $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '\1', $value);
+            }
         }
 
         $recordUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable($referenceRow['tablename']);

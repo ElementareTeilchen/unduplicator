@@ -6,20 +6,20 @@ namespace ElementareTeilchen\Unduplicator\Tests\Functional\Command;
 
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 class UnduplicateCommandTest extends FunctionalTestCase
 {
+
     const BASE_COMMAND = 'unduplicate:sysfile -n';
 
-    #[Test] public function unduplicateCommandReturnsZeroIfNoDuplicates()
+    #[Test] public function unduplicateCommandReturnsZeroIfNoDuplicates(): void
     {
         $result = $this->executeConsoleCommand(self::BASE_COMMAND);
         self::assertEquals(0, $result['status']);
     }
 
-    #[Test] public function unduplicateCommandIgnoresNonDuplicates()
+    #[Test] public function unduplicateCommandIgnoresNonDuplicates(): void
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_non_duplicates.csv');
 
@@ -30,7 +30,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
-    #[Test] public function unduplicateCommandIgnoresNonDuplicatesByCase()
+    #[Test] public function unduplicateCommandIgnoresNonDuplicatesByCase(): void
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_non_duplicates_case_sensitive.csv');
 
@@ -40,7 +40,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
-    #[Test] public function unduplicateCommandFixesDuplicates()
+    #[Test] public function unduplicateCommandFixesDuplicates(): void
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates.csv');
 
@@ -50,8 +50,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
-
-    #[Test] public function unduplicateCommandFixesDuplicatesWithReferences()
+    #[Test] public function unduplicateCommandFixesDuplicatesWithReferences(): void
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references.csv');
 
@@ -63,7 +62,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
     }
 
 
-    #[Test] public function unduplicateCommandFixesDuplicatesWithMetadata()
+    #[Test] public function unduplicateCommandFixesDuplicatesWithMetadata(): void
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata.csv');
 
@@ -82,7 +81,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
         'typo3/sysext/frontend/Resources/Public/Icons/Extension.svg' => 'fileadmin/_processed_/3/c/csm_myfile_975bcb8fba.jpg',
     ];
 
-    #[Test] public function unduplicateCommandFixesDuplicatesWithProcessedFiles()
+    #[Test] public function unduplicateCommandFixesDuplicatesWithProcessedFiles(): void
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_processed_files.csv');
 
