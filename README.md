@@ -74,7 +74,3 @@ Otherwise only description is checked.
 composer install
 ./Build/Scripts/runTests.sh -s functional -d mariadb -p 8.3
 ```
-> **Note**
-> To test the update of the rte-ckeditor-image soft references,
-> you need to install the extension before running the test:
-> `composer req netresearch/rte-ckeditor-image`. Remove it afterwards again.
