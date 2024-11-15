@@ -6,7 +6,6 @@
     "require": {
         "php": "^8.1 || ^8.2 || ^8.3",
         "ext-pdo": "*",
-        "netresearch/rte-ckeditor-image": "^12.0",
         "typo3/cms-core": "^12.4"
     },
     "extra": {

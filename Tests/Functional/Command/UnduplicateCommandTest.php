@@ -6,6 +6,7 @@ namespace ElementareTeilchen\Unduplicator\Tests\Functional\Command;
 
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 class UnduplicateCommandTest extends FunctionalTestCase
@@ -52,12 +53,20 @@ class UnduplicateCommandTest extends FunctionalTestCase
 
     #[Test] public function unduplicateCommandFixesDuplicatesWithReferences(): void
     {
-        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references.csv');
+        if (ExtensionManagementUtility::isLoaded('rte_ckeditor_image')) {
+            $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_ref_and_rte-ckeditor-image.csv');
+        } else {
+            $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references.csv');
+        }
 
         $result = $this->executeConsoleCommand(self::BASE_COMMAND);
 
         // the references are updated, so that the newer sys_file entry (uid=2) is used
-        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references_RESULT.csv');
+        if (ExtensionManagementUtility::isLoaded('rte_ckeditor_image')) {
+            $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_ref_and_rte-ckeditor-image_RESULT.csv');
+        } else {
+            $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references_RESULT.csv');
+        }
         self::assertEquals(0, $result['status']);
     }
 
