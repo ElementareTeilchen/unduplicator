@@ -1,5 +1,6 @@
 /.Build/
 /.idea/
+/.cache/
 /.php_cs.cache
 /.php-cs-fixer.cache
 /Build/testing-docker/.env

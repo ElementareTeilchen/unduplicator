@@ -34,6 +34,7 @@
         }
     },
     "require-dev": {
+        "netresearch/rte-ckeditor-image": "^12.0",
         "phpunit/phpunit": "^11",
         "typo3/testing-framework": "8.2.0"
     }
