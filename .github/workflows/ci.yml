@@ -41,3 +41,7 @@ jobs:
       - name: "Functional tests with postgres (nightly or pull_request)"
         if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'pull_request' ) }}
         run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -d postgres -s functional
+
+      - name: "Functional tests with mysql (nightly or pull_request)"
+        if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'pull_request' ) }}
+        run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -d mysql -s functional

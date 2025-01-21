@@ -4,8 +4,22 @@ Finds and fixes duplicates of sys_file entries pointing to the same file. Merges
 Tested successfully with TYPO3 v12.
 
 ## Warning
+
 Older versions for TYPO3 v8 may not consider identifiers with mixed case or sys_file
 entries on several storages (sys_file.storage) correctly, see issue https://github.com/ElementareTeilchen/unduplicator/issues/2
+
+## Portabilty (database)
+
+In order to test for duplicates, a database command like this is used:
+
+```sql
+SELECT COUNT(*), MAX(identifier) AS identifier, storage FROM `sys_file` GROUP BY BINARY identifier, storage HAVING COUNT(*) > 1;
+```
+
+Therefore, it is necessary, that the underlying database engines support MAX and BINARY. This command was tested with the following:
+
+* MariaDB
+* MySQL
 
 ## Usage
 We strongly recommend to run the **reference index update** (before and after):
