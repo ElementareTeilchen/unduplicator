@@ -230,11 +230,10 @@ class UnduplicateCommand extends Command
         $concreteQueryBuilder = $queryBuilder->getConcreteQueryBuilder();
 
         // GROUP BY BINARY `identifier`,`storage
-        $concreteQueryBuilder->groupBy('BINARY ' . $queryBuilder->quoteIdentifier('identifier'));
-        $concreteQueryBuilder->addGroupBy($queryBuilder->quoteIdentifier('storage'));
+        $concreteQueryBuilder->groupBy('md5(identifier)');
+        $concreteQueryBuilder->addGroupBy('storage');
         // SELECT MAX(`identifier`) AS identifier,`storage`
-        $concreteQueryBuilder->addSelect('MAX(' . $queryBuilder->quoteIdentifier('identifier')
-            . ') AS identifier, ' . $queryBuilder->quoteIdentifier('storage'));
+        $concreteQueryBuilder->addSelect('MAX(identifier) AS identifier, storage');
 
         $this->output->writeln('sql=' . $queryBuilder->getSQL(), OutputInterface::VERBOSITY_VERBOSE);
 
@@ -261,9 +260,7 @@ class UnduplicateCommand extends Command
                 )
             )->orderBy('uid', 'DESC');
 
-        $whereClause = $fileQueryBuilder->expr()->eq('identifier',
-            $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR));
-        $whereClause = 'BINARY ' . $whereClause;
+        $whereClause = 'md5(identifier) = md5(' . $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR) . ')';
         $fileQueryBuilder->add('where', $whereClause);
 
         return $fileQueryBuilder->executeQuery()
