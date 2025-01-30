@@ -13,13 +13,14 @@ entries on several storages (sys_file.storage) correctly, see issue https://gith
 In order to test for duplicates, a database command like this is used:
 
 ```sql
-SELECT COUNT(*), MAX(identifier) AS identifier, storage FROM `sys_file` GROUP BY BINARY identifier, storage HAVING COUNT(*) > 1;
+SELECT COUNT(*), MAX(identifier) AS identifier, storage FROM `sys_file` GROUP BY MD5(identifier), storage HAVING COUNT(*) > 1;
 ```
 
-Therefore, it is necessary, that the underlying database engines support MAX and BINARY. This command was tested with the following:
+Therefore, it is necessary, that the underlying database engines support MAX and MD5. This command was tested with the following:
 
 * MariaDB
 * MySQL
+* Postgres
 
 ## Usage
 We strongly recommend to run the **reference index update** (before and after):
