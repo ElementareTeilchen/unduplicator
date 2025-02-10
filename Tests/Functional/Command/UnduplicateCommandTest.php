@@ -50,6 +50,22 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
+    /**
+     * * abc.jpg
+     * * ABC.jpg
+     * * ABC.jpg
+     * should remove one ABC.jpg
+     */
+    #[Test] public function unduplicateCommandFixesDuplicatesWithMixCaseSensitives(): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_mix_casesensitive.csv');
+
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND);
+
+        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_mix_casesensitive_RESULT.csv');
+        self::assertEquals(0, $result['status']);
+    }
+
     #[Test] public function unduplicateCommandFixesDuplicatesWithReferences(): void
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references.csv');

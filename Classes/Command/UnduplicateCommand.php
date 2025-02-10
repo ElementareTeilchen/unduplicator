@@ -195,6 +195,11 @@ class UnduplicateCommand extends Command
     }
 
     /**
+     * Uses GROUP BY BINARY identifier,storage to make sure we don't get results for identifiers which are only duplicate
+     * if checked case-insensitively.
+     *
+     * Database may be case-insensitive, e.g. charset 'utf8mb5', collation 'utf8mb4_unicode_ci'.
+     *
      * @param mixed $onlyThisIdentifier
      * @param int $onlyThisStorage
      * @return Result
@@ -203,9 +208,7 @@ class UnduplicateCommand extends Command
     {
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
         $queryBuilder->count('*')
-            ->addSelect('identifier', 'storage')
             ->from('sys_file')
-            ->groupBy('identifier', 'storage')
             ->having('COUNT(*) > 1');
         $whereExpressions = [];
         if ($onlyThisIdentifier) {
@@ -223,27 +226,44 @@ class UnduplicateCommand extends Command
         if ($whereExpressions) {
             $queryBuilder->where(...$whereExpressions);
         }
+
+        $concreteQueryBuilder = $queryBuilder->getConcreteQueryBuilder();
+
+        // GROUP BY BINARY `identifier`,`storage
+        $concreteQueryBuilder->groupBy('MD5(identifier)');
+        $concreteQueryBuilder->addGroupBy('storage');
+        // SELECT MAX(`identifier`) AS identifier,`storage`
+        $concreteQueryBuilder->addSelect('MAX(identifier) AS identifier, storage');
+
+        $this->output->writeln('sql=' . $queryBuilder->getSQL(), OutputInterface::VERBOSITY_VERBOSE);
+
         $statement = $queryBuilder
             ->executeQuery();
         return $statement;
     }
 
+    /**
+     * Must make sure we compare identifier case-sensitively, so using "BINARY identifier" here .
+     *
+     * Database may be case-insensitive, e.g. charset 'utf8mb5', collation 'utf8mb4_unicode_ci'.
+     */
     private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array
     {
         $fileQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
 
-        return $fileQueryBuilder->select('uid', 'identifier')
+        $fileQueryBuilder->select('uid', 'identifier')
             ->from('sys_file')
             ->where(
-                $fileQueryBuilder->expr()->eq(
-                    'identifier',
-                    $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR)
-                ),
                 $fileQueryBuilder->expr()->eq(
                     'storage',
                     $fileQueryBuilder->createNamedParameter($storage, Connection::PARAM_INT)
                 )
-            )->orderBy('uid', 'DESC')->executeQuery()
+            )->orderBy('uid', 'DESC');
+
+        $whereClause = 'MD5(identifier) = MD5(' . $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR) . ')';
+        $fileQueryBuilder->add('where', $whereClause);
+
+        return $fileQueryBuilder->executeQuery()
             ->fetchAllAssociative();
     }
 
