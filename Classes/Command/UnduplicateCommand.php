@@ -561,6 +561,9 @@ class UnduplicateCommand extends Command
             )
             ->executeQuery();
         while ($record = $results->fetchAssociative()) {
+            if(empty($record['identifier'])) {
+                continue;
+            }
             // delete each file from file system
             $this->output->writeln('<info>Deleting processed file ' . $record['identifier'] . '</info>');
             $this->deleteProcessedFile($record['identifier']);
