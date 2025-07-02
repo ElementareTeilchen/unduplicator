@@ -65,6 +65,16 @@ class UnduplicateCommand extends Command
     private $dryRun = false;
 
     /**
+     * @var String|bool
+     */
+    private $force = false;
+
+    /**
+     * @var bool
+     */
+    private $keepOldest = false;
+
+    /**
      * @var SymfonyStyle
      */
     private $output;
@@ -85,7 +95,8 @@ class UnduplicateCommand extends Command
      */
     public function configure()
     {
-        $this->setDescription('Finds duplicates in sys_file and unduplicates them');
+        $this->setDescription('Finds duplicates in sys_file and unduplicates them.
+        By default it will use the newest (highest uid) record as master and delete the older records.');
         $this->setHelp(
             'currently fix references in ' . LF .
             '- sys_file_reference::link ' . LF .
@@ -114,6 +125,20 @@ class UnduplicateCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Only use this storage',
                 -1
+            )
+            ->addOption(
+                'force',
+                'f',
+                InputOption::VALUE_OPTIONAL,
+                'Force keep or overwrite of metadata of the master record in case of conflict. Possible values: keep, keep-nonempty.
+                Default: overwrite. Keep-nonempty is keeping only nonempty metadata in master, but updating the empty.',
+                false
+            )
+            ->addOption(
+                'keep-oldest',
+                'o',
+                InputOption::VALUE_NONE,
+                'Use the oldest record as master instead of the newest',
             )
             ->addOption(
                 'meta-fields',
@@ -146,6 +171,11 @@ class UnduplicateCommand extends Command
         $this->updateReferenceIndex($input);
 
         $this->dryRun = $input->getOption('dry-run');
+        $this->force = $input->getOption('force'); // force will be null if no value is passed -> overwrite
+        if ($this->force === null) {
+            $this->force = 'overwrite';
+        }
+        $this->keepOldest = $input->getOption('keep-oldest');
         $onlyThisIdentifier = $input->getOption('identifier');
         $onlyThisStorage = (int)$input->getOption('storage');
 
@@ -258,7 +288,7 @@ class UnduplicateCommand extends Command
                     'storage',
                     $fileQueryBuilder->createNamedParameter($storage, Connection::PARAM_INT)
                 )
-            )->orderBy('uid', 'DESC');
+            )->orderBy('uid', $this->keepOldest ? 'ASC' : 'DESC');
 
         $whereClause = 'MD5(identifier) = MD5(' . $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR) . ')';
         $fileQueryBuilder->add('where', $whereClause);
@@ -370,10 +400,11 @@ class UnduplicateCommand extends Command
     public function updateMetadataRecord(int $masterFileUid, array $referenceRow): bool
     {
 
-        $metadata = $this->isMetadataRecordPopulated($referenceRow['ref_uid']);
+        $oldMetadata = $this->isMetadataRecordPopulated($referenceRow['ref_uid']);
         $masterFileMetadata = $this->isMetadataRecordPopulated($masterFileUid);
+        $masterEmoty = !$masterFileMetadata;
 
-        if (!$metadata || $metadata === $masterFileMetadata) { // check if record is empty or if the values are the same as in master
+        if (!$oldMetadata || $oldMetadata === $masterFileMetadata) { // check if record is empty or if the values are the same as in master
             $this->output->writeln('<info>Deleting old metadata record</info>');
 
             if (!$this->dryRun) {
@@ -381,11 +412,24 @@ class UnduplicateCommand extends Command
                 $this->deleteReference($referenceRow);
             }
 
-        } elseif ($metadata && !$masterFileMetadata) { // check if master record has metadata, if not, copy the old ones
-            $this->output->writeln('<info>Old metadata is not empty and master is empty, copying values to master</info>');
+        } elseif ($oldMetadata && ($masterEmoty || $this->force !== false)) { // check if master record has metadata, if not, copy the old ones
+
+            if ($masterEmoty) {
+                $this->output->writeln('<info>Old metadata is not empty and master is empty, copying values to master. Deleting old metadata record</info>');
+            } else if ($this->force !== false) {
+                if ($this->force !== 'keep') {
+                    $this->output->writeln('<info>Force overwriting metadata in master. Deleting old metadata record</info>');
+                } else {
+                    $this->output->writeln('<info>Force keeping metadata in master. Deleting old metadata record. Action may be required.</info>');
+                }
+            }
 
             if (!$this->dryRun) {
-                $this->updateMasterFileMetadata($masterFileUid, $metadata);
+                if ($this->force === false ||
+                    $this->force === 'overwrite' ||
+                    $masterEmoty && $this->force === 'keep-nonempty') {
+                    $this->updateMasterFileMetadata($masterFileUid, $oldMetadata);
+                }
                 $this->deleteReferencedRecord($referenceRow);
                 $this->deleteReference($referenceRow);
             }

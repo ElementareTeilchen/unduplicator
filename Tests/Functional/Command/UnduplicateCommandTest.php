@@ -89,6 +89,50 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
+    #[Test] public function unduplicateCommandKeepOldestWithMetadata(): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata.csv');
+
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND . ' --keep-oldest');
+
+        // the references are updated, so that the newer sys_file entry (uid=2) is used
+        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_oldest_RESULT.csv');
+        self::assertEquals(0, $result['status']);
+    }
+
+    #[Test] public function unduplicateCommandForceOverwriteWithMetadata(): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata.csv');
+
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND . ' --force');
+
+        // the references are updated, so that the newer sys_file entry (uid=2) is used
+        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_force_overwrite_RESULT.csv');
+        self::assertEquals(0, $result['status']);
+    }
+
+    #[Test] public function unduplicateCommandForceKeepWithMetadata(): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata.csv');
+
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND . ' --force keep');
+
+        // the references are updated, so that the newer sys_file entry (uid=2) is used
+        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_force_keep_RESULT.csv');
+        self::assertEquals(0, $result['status']);
+    }
+
+    #[Test] public function unduplicateCommandForceKeepNonEmptyWithMetadata(): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata.csv');
+
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND . ' --force keep-nonempty');
+
+        // the references are updated, so that the newer sys_file entry (uid=2) is used
+        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_force_keep_nonempty_RESULT.csv');
+        self::assertEquals(0, $result['status']);
+    }
+
     /**
      * Provide a processed file for the test run, so that it can be deleted
      * @var array<string, string>
