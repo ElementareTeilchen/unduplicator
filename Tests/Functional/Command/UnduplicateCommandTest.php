@@ -77,6 +77,17 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
+    #[Test] public function unduplicateCommandFixesDuplicatesWithReferencesDeleted(): void
+    {
+        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references_deleted.csv');
+
+        $result = $this->executeConsoleCommand(self::BASE_COMMAND);
+
+        // the references are updated, so that the newer sys_file entry (uid=2) is used
+        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_references_deleted_RESULT.csv');
+        self::assertEquals(0, $result['status']);
+    }
+
 
     #[Test] public function unduplicateCommandFixesDuplicatesWithMetadata(): void
     {

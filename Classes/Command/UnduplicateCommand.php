@@ -402,7 +402,7 @@ class UnduplicateCommand extends Command
 
         $oldMetadata = $this->isMetadataRecordPopulated($referenceRow['ref_uid']);
         $masterFileMetadata = $this->isMetadataRecordPopulated($masterFileUid);
-        $masterEmoty = !$masterFileMetadata;
+        $masterEmpty = !$masterFileMetadata;
 
         if (!$oldMetadata || $oldMetadata === $masterFileMetadata) { // check if record is empty or if the values are the same as in master
             $this->output->writeln('<info>Deleting old metadata record</info>');
@@ -412,9 +412,9 @@ class UnduplicateCommand extends Command
                 $this->deleteReference($referenceRow);
             }
 
-        } elseif ($oldMetadata && ($masterEmoty || $this->force !== false)) { // check if master record has metadata, if not, copy the old ones
+        } elseif ($oldMetadata && ($masterEmpty || $this->force !== false)) { // check if master record has metadata, if not, copy the old ones
 
-            if ($masterEmoty) {
+            if ($masterEmpty) {
                 $this->output->writeln('<info>Old metadata is not empty and master is empty, copying values to master. Deleting old metadata record</info>');
             } else if ($this->force !== false) {
                 if ($this->force !== 'keep') {
@@ -427,7 +427,7 @@ class UnduplicateCommand extends Command
             if (!$this->dryRun) {
                 if ($this->force === false ||
                     $this->force === 'overwrite' ||
-                    $masterEmoty && $this->force === 'keep-nonempty') {
+                    $masterEmpty && $this->force === 'keep-nonempty') {
                     $this->updateMasterFileMetadata($masterFileUid, $oldMetadata);
                 }
                 $this->deleteReferencedRecord($referenceRow);
@@ -446,6 +446,7 @@ class UnduplicateCommand extends Command
             $value = $masterFileUid;
         } else {
             $recordQueryBuilder = $this->connectionPool->getQueryBuilderForTable($referenceRow['tablename']);
+            $recordQueryBuilder->getRestrictions()->removeAll();
             $record = $recordQueryBuilder->select($referenceRow['field'])
                 ->from($referenceRow['tablename'])
                 ->where(
@@ -473,6 +474,7 @@ class UnduplicateCommand extends Command
         }
 
         $recordUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable($referenceRow['tablename']);
+        $recordUpdateQueryBuilder->getRestrictions()->removeAll();
         $recordUpdateExpr = $recordUpdateQueryBuilder->expr();
         $recordUpdateQueryBuilder->update($referenceRow['tablename'])
             ->set($referenceRow['field'], $value)
@@ -605,9 +607,6 @@ class UnduplicateCommand extends Command
             )
             ->executeQuery();
         while ($record = $results->fetchAssociative()) {
-            if(empty($record['identifier'])) {
-                continue;
-            }
             // delete each file from file system
             $this->output->writeln('<info>Deleting processed file ' . $record['identifier'] . '</info>');
             $this->deleteProcessedFile($record['identifier']);
