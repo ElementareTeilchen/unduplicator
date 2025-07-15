@@ -101,14 +101,14 @@ class UnduplicateCommandTest extends FunctionalTestCase
     }
 
 
-    #[Test] public function unduplicateCommandFixesDuplicatesWithConflictingMetadata(): void
+    #[Test] public function unduplicateCommandFixesDuplicatesWithLanguagesMetadata(): void
     {
-        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_conflict.csv');
+        $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_languages.csv');
 
         $result = $this->executeConsoleCommand(self::BASE_COMMAND);
 
         // the references are updated, so that the newer sys_file entry (uid=2) is used
-        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_conflict_RESULT.csv');
+        $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_languages_RESULT.csv');
         self::assertEquals(0, $result['status']);
     }
 
