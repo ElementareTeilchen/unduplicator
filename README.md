@@ -40,32 +40,36 @@ php vendor/bin/typo3 unduplicate:sysfile --update-refindex --dry-run
 # for real
 php vendor/bin/typo3 unduplicate:sysfile -n
 ```
-Options:
-* `--dry-run` | `-d` only shows the duplicates, but does not update the database.
-* `--storage` | `-s` only consider duplicates in the given storage.
-* `--identifier` | `-i` only consider duplicates with the given identifier.
-* `--meta-fields` | `-m` check for conflicting metadata fields, see below.
-* `--no-interaction` | `-n` do not ask for the update of the reference index.
-* `--update-refindex` | `-u` update the reference index before the operation.
+### Options
+
+| Option | Alias | Description                                                                                                                           |
+| --- | --- |---------------------------------------------------------------------------------------------------------------------------------------|
+| `--dry-run` | `-d` | Only shows the duplicates, but does not update the database.                                                                          |
+| `--identifier` | `-i` | Only consider duplicates with the given identifier.                                                                                   |
+| `--storage` | `-s` | Only consider duplicates in the given storage.                                                                                        |
+| `--force` | `-f` | Enforce keeping or overwriting of metadata of the master record in case of conflict. Possible values: keep, keep-nonempty, overwrite. |
+| `--keep-oldest` | `-o` | Use the oldest record as master instead of the newest.                                                                                |
+| `--meta-fields` | `-m` | Check for conflicting metadata fields, see below.                                                                                     |
+| `--update-refindex` | `-u` | Update the reference index before the operation.                                                                                      |
+| `--no-interaction` | `-n` | Do not ask for the update of the reference index.                                                                                     |
 
 Run another reference index update when you are done:
 ```
 php vendor/bin/typo3 referenceindex:update
 ```
 
-Example: if you want to run the unduplicator only for a specific storage or even identifier (found by dry-run):
+### Examples
 
-```
-php vendor/bin/typo3 unduplicate:sysfile --storage <storage> --identifier <"identifier">
+```bash
+# run for a specific storage and identifier
+php vendor/bin/typo3 unduplicate:sysfile --storage 1 --identifier "/user_upload/duplicate.jpg"
 
-# For example:
-php vendor/bin/typo3 unduplicate:sysfile  --storage 1 --identifier "/user_upload/duplicate.jpg"
+# `--keep-oldest` can be used in conjunction with `--force keep` to keep the oldest entries as they are and delete all others
+php vendor/bin/typo3 unduplicate:sysfile -n --force keep --keep-oldest
 ```
 
 > **Note**
 > For non-composer-mode the path to the CLI script is `typo3/sysext/core/bin/typo3`
->
->
 
 ## How the duplicate check is done
 
