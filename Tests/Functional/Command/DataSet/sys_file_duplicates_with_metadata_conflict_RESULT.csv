@@ -1,0 +1,13 @@
+"sys_file",,,
+,"uid","identifier","storage"
+,1,"/test/abc.jpg",1
+,2,"/test/abc.jpg",1
+"sys_file_metadata",,,
+,"uid","file","description","sys_language_uid"
+,2,1,"ABC",1
+,4,2,"ABCD",0
+,5,2,"ABCDE",1
+,6,2,"ABCDEF",3
+,8,2,"AB",4
+,9,2,"ABCD",2
+
