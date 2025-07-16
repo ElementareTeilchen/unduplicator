@@ -18,6 +18,8 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\ReferenceIndex;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use ElementareTeilchen\Unduplicator\Metadata\MetadataUpdateHandler;
+use ElementareTeilchen\Unduplicator\Exception\UnduplicatorException;
 
 /***************************************************************
  *  Copyright notice

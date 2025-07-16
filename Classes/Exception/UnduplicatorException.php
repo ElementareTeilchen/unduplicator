@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Elementareteilchen\Unduplicator\Command;
+namespace Elementareteilchen\Unduplicator\Exception;
 
 class UnduplicatorException extends \Exception
 {

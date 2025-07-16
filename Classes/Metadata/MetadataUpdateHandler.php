@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ElementareTeilchen\Unduplicator\Command;
+namespace ElementareTeilchen\Unduplicator\Metadata;
 
 use Doctrine\DBAL\Exception;
 use Symfony\Component\Console\Input\InputInterface;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ElementareTeilchen\Unduplicator\Command;
+namespace ElementareTeilchen\Unduplicator\Metadata;
 
 class MetadataUpdateObject
 {
