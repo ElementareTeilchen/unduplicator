@@ -74,8 +74,13 @@ class MetadataUpdateObject
     {
         // unset all fields that are not in $this->fieldsToCheck
         foreach ($metadata as $key => $value) {
+            if (is_string($value)) {
+                $value = trim($value);
+            }
             if (!in_array($key, $this->fieldsToCheck) || empty($value)) {
                 unset($metadata[$key]);
+            } else {
+                $metadata[$key] = $value;
             }
         }
         return $metadata;
