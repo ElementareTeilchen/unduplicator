@@ -169,6 +169,7 @@ class UnduplicateCommandTest extends FunctionalTestCase
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_processed_files.csv');
 
         $result = $this->executeConsoleCommand(self::BASE_COMMAND);
+        echo $result['output'];
 
         // the processed files are updated, so that the newer sys_file entry (uid=2) is used
         $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_processed_files_RESULT.csv');

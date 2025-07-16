@@ -6,6 +6,8 @@ namespace ElementareTeilchen\Unduplicator\Command;
 
 use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Result;
+use ElementareTeilchen\Unduplicator\Exception\UnduplicatorException;
+use ElementareTeilchen\Unduplicator\Metadata\MetadataUpdateHandler;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -16,10 +18,9 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\ReferenceIndex;
+use TYPO3\CMS\Core\Resource\StorageRepository;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use ElementareTeilchen\Unduplicator\Metadata\MetadataUpdateHandler;
-use ElementareTeilchen\Unduplicator\Exception\UnduplicatorException;
 
 /***************************************************************
  *  Copyright notice
@@ -58,10 +59,6 @@ use ElementareTeilchen\Unduplicator\Exception\UnduplicatorException;
  */
 class UnduplicateCommand extends Command
 {
-    /**
-     * @var ConnectionPool
-     */
-    private $connectionPool;
 
     /**
      * @var bool
@@ -72,6 +69,11 @@ class UnduplicateCommand extends Command
      * @var bool
      */
     private $keepOldest = false;
+
+    /**
+     * @var int
+     */
+    private $storage = -1;
 
     /**
      * @var SymfonyStyle
@@ -93,10 +95,12 @@ class UnduplicateCommand extends Command
      */
     private $metadataHandler;
 
-    public function __construct($name = null, ConnectionPool $connectionPool = null)
+    public function __construct(
+        private readonly ConnectionPool $connectionPool,
+        private readonly StorageRepository $storageRepository
+    )
     {
-        parent::__construct($name);
-        $this->connectionPool = $connectionPool ?: GeneralUtility::makeInstance(ConnectionPool::class);
+        parent::__construct();
     }
 
     /**
@@ -206,7 +210,7 @@ class UnduplicateCommand extends Command
         $this->dryRun = $input->getOption("dry-run");
         $this->keepOldest = $input->getOption("keep-oldest");
         $onlyThisIdentifier = $input->getOption("identifier");
-        $onlyThisStorage = (int)$input->getOption("storage");
+        $this->storage = (int)$input->getOption("storage") ?? -1;
 
         if ($input->hasArgument("meta-fields")) {
             $this->fieldsToCheck = array_map("trim", explode(",", $input->getOption("meta-fields")));
@@ -220,7 +224,7 @@ class UnduplicateCommand extends Command
         $this->metadataHandler = new MetadataUpdateHandler($this->dryRun, $this->input, $this->output, $this->fieldsToCheck, $this->connectionPool);
 
         try {
-            $this->runOn($onlyThisIdentifier, $onlyThisStorage);
+            $this->runOn($onlyThisIdentifier);
         } catch (UnduplicatorException $e) {
             $this->output->writeln("<error>" . $e->getMessage() . "</error>");
         }
@@ -233,10 +237,10 @@ class UnduplicateCommand extends Command
      * @return void
      * @throws Exception
      */
-    public function runOn(mixed $onlyThisIdentifier, int $onlyThisStorage): void
+    public function runOn(mixed $onlyThisIdentifier): void
     {
         $hasConflicts = false;
-        $statement = $this->findDuplicates($onlyThisIdentifier, $onlyThisStorage);
+        $statement = $this->findDuplicates($onlyThisIdentifier);
         $foundDuplicates = 0;
         while ($row = $statement->fetchAssociative()) {
             $identifier = $row['identifier'] ?? "";
@@ -244,9 +248,10 @@ class UnduplicateCommand extends Command
                 $this->output->warning("Found empty identifier");
                 continue;
             }
-            $storage = (int)$row['storage'];
 
+            $storage = (int)$row['storage'];
             $files = $this->findDuplicateFilesForIdentifier($identifier, $storage);
+
             $masterMetadataRecords = null;
             $masterFileIdentifier = null;
             $masterFileUid = null;
@@ -284,10 +289,10 @@ class UnduplicateCommand extends Command
      * Database may be case-insensitive, e.g. charset "utf8mb5", collation "utf8mb4_unicode_ci".
      *
      * @param mixed $onlyThisIdentifier
-     * @param int $onlyThisStorage
+     * @param int $storage
      * @return Result
      */
-    public function findDuplicates(mixed $onlyThisIdentifier, int $onlyThisStorage): Result
+    public function findDuplicates(mixed $onlyThisIdentifier): Result
     {
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable("sys_file");
         $queryBuilder->count("*")
@@ -300,10 +305,10 @@ class UnduplicateCommand extends Command
                 $queryBuilder->createNamedParameter($onlyThisIdentifier, \PDO::PARAM_STR)
             );
         }
-        if ($onlyThisStorage > -1) {
+        if ($this->storage > -1) {
             $whereExpressions[] = $queryBuilder->expr()->eq(
                 "storage",
-                $queryBuilder->createNamedParameter($onlyThisStorage, Connection::PARAM_INT)
+                $queryBuilder->createNamedParameter($this->storage, Connection::PARAM_INT)
             );
         }
         if ($whereExpressions) {
@@ -578,7 +583,7 @@ class UnduplicateCommand extends Command
     private function findAndDeleteOldProcessedFile(int $oldFileUid): void
     {
         $recordQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_processedfile');
-        $results = $recordQueryBuilder->select('identifier')
+        $results = $recordQueryBuilder->select('identifier', 'storage')
             ->from('sys_file_processedfile')
             ->where(
                 $recordQueryBuilder->expr()->eq(
@@ -590,7 +595,7 @@ class UnduplicateCommand extends Command
         while ($record = $results->fetchAssociative()) {
             // delete each file from file system
             $this->output->writeln('<info>Deleting processed file ' . $record['identifier'] . '</info>');
-            $this->deleteProcessedFile($record['identifier']);
+            $this->deleteProcessedFile($record['identifier'], $record['storage']);
         }
         // delete all records in sys_file_processedfile
         $recordQueryBuilder->delete('sys_file_processedfile')
@@ -603,14 +608,18 @@ class UnduplicateCommand extends Command
             ->executeStatement();
     }
 
-    private function deleteProcessedFile(mixed $identifier): void
+    private function deleteProcessedFile(mixed $identifier, int $storageId): void
     {
-        $file = Environment::getPublicPath() . '/fileadmin' . $identifier;
+        $storage = $this->storageRepository->getStorageObject($storageId);
+        $storagePath = Environment::getPublicPath() . DIRECTORY_SEPARATOR . $storage->getRootLevelFolder()->getPublicUrl();
+        $storagePath = rtrim($storagePath, '/');
+        //$this->output->writeln('<info>Deleting processed file ' . $storagePath . $identifier . '</info>');
+        $file = $storagePath . $identifier;
         if (file_exists($file)) {
             unlink($file);
             // delete all empty parent folders
             $dir = dirname($file);
-            while ($dir !== Environment::getPublicPath() . '/fileadmin' && count(scandir($dir)) === 2) {
+            while ($dir !== $storagePath && count(scandir($dir)) === 2) {
                 rmdir($dir);
                 $dir = dirname($dir);
             }
