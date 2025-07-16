@@ -594,7 +594,6 @@ class UnduplicateCommand extends Command
             ->executeQuery();
         while ($record = $results->fetchAssociative()) {
             // delete each file from file system
-            $this->output->writeln('<info>Deleting processed file ' . $record['identifier'] . '</info>');
             $this->deleteProcessedFile($record['identifier'], $record['storage']);
         }
         // delete all records in sys_file_processedfile
@@ -612,9 +611,8 @@ class UnduplicateCommand extends Command
     {
         $storage = $this->storageRepository->getStorageObject($storageId);
         $storagePath = Environment::getPublicPath() . DIRECTORY_SEPARATOR . $storage->getRootLevelFolder()->getPublicUrl();
-        $storagePath = rtrim($storagePath, '/');
-        //$this->output->writeln('<info>Deleting processed file ' . $storagePath . $identifier . '</info>');
-        $file = $storagePath . $identifier;
+        $file = rtrim($storagePath, '/') . $identifier;
+        $this->output->writeln('<info>Deleting processed file ' . $file . '</info>');
         if (file_exists($file)) {
             unlink($file);
             // delete all empty parent folders
