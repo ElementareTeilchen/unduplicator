@@ -96,7 +96,7 @@ class UnduplicateCommand extends Command
     private $metadataHandler;
 
     public function __construct(
-        private readonly ConnectionPool $connectionPool,
+        private readonly ConnectionPool    $connectionPool,
         private readonly StorageRepository $storageRepository
     )
     {
@@ -609,10 +609,17 @@ class UnduplicateCommand extends Command
 
     private function deleteProcessedFile(mixed $identifier, int $storageId): void
     {
+        if (empty($identifier) || empty($storageId)) {
+            $this->output->writeln('<error>Empty identifier or storage id. Aborting delete of processed file</error>');
+            return;
+        }
+
         $storage = $this->storageRepository->getStorageObject($storageId);
         $storagePath = Environment::getPublicPath() . DIRECTORY_SEPARATOR . $storage->getRootLevelFolder()->getPublicUrl();
         $file = rtrim($storagePath, '/') . $identifier;
+
         $this->output->writeln('<info>Deleting processed file ' . $file . '</info>');
+
         if (file_exists($file)) {
             unlink($file);
             // delete all empty parent folders
