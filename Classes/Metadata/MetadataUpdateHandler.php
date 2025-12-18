@@ -12,7 +12,7 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 
 class MetadataUpdateHandler
 {
-    private string|bool $force = false;
+    private null|string|bool $force = false;
 
     public function __construct(
         private readonly bool $dryRun,

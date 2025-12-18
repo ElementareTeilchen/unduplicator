@@ -317,11 +317,13 @@ class UnduplicateCommand extends Command
                 $fileQueryBuilder->expr()->eq(
                     'storage',
                     $fileQueryBuilder->createNamedParameter($storage, Connection::PARAM_INT)
+                ),
+                $fileQueryBuilder->expr()->comparison(
+                    'MD5(' . $fileQueryBuilder->quoteIdentifier('identifier') . ')',
+                    $fileQueryBuilder->expr()::EQ,
+                    'MD5(' . $fileQueryBuilder->createNamedParameter($identifier, Connection::PARAM_STR) . ')'
                 )
             )->orderBy('uid', $this->keepOldest ? 'ASC' : 'DESC');
-
-        $whereClause = 'MD5(identifier) = MD5(' . $fileQueryBuilder->createNamedParameter($identifier, Connection::PARAM_STR) . ')';
-        $fileQueryBuilder->add('where', $whereClause);
 
         return $fileQueryBuilder->executeQuery()
             ->fetchAllAssociative();
