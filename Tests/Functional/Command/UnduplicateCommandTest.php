@@ -182,10 +182,10 @@ class UnduplicateCommandTest extends FunctionalTestCase
      */
     protected function executeConsoleCommand(string $cmdline, ...$args): array
     {
-        $typo3File = __DIR__ . '/../../../.Build/bin/typo3';
+        $typo3File = __DIR__ . '/../../../bin/typo3';
         if (!file_exists($typo3File)) {
             throw new RuntimeException(
-                sprintf('Executable file <typo3> not found (using path <%s>). Make sure config:bin-dir is set to .Build/bin in composer.json', $typo3File)
+                sprintf('Executable file <typo3> not found (using path <%s>). Make sure config:bin-dir is set to \'bin\' in composer.json', $typo3File)
             );
         }
 

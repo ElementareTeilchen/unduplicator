@@ -26,8 +26,7 @@
     },
     "config": {
         "sort-packages": true,
-        "vendor-dir": ".Build/vendor",
-        "bin-dir": ".Build/bin",
+        "bin-dir": "bin",
         "allow-plugins": {
             "typo3/cms-composer-installers": true,
             "typo3/class-alias-loader": true
