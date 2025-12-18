@@ -59,7 +59,6 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class UnduplicateCommand extends Command
 {
-
     /**
      * @var bool
      */
@@ -70,114 +69,96 @@ class UnduplicateCommand extends Command
      */
     private $keepOldest = false;
 
-    /**
-     * @var int
-     */
-    private $storage = -1;
+    private int $storage = -1;
 
-    /**
-     * @var SymfonyStyle
-     */
-    private $output;
+    private ?SymfonyStyle $output = null;
 
-    /**
-     * @var InputInterface
-     */
-    private $input;
+    private ?InputInterface $input = null;
 
-    /**
-     * @var array
-     */
-    private $fieldsToCheck = ['description'];
+    private array $fieldsToCheck = ['description'];
 
-    /**
-     * @var MetadataUpdateHandler
-     */
-    private $metadataHandler;
+    private ?MetadataUpdateHandler $metadataHandler = null;
 
     public function __construct(
-        private readonly ConnectionPool    $connectionPool,
+        private readonly ConnectionPool $connectionPool,
         private readonly StorageRepository $storageRepository
-    )
-    {
+    ) {
         parent::__construct();
     }
 
     /**
      * Configure the command by defining the name, options and arguments
      */
-    public function configure()
+    public function configure(): void
     {
-        $this->setDescription("Finds duplicates in sys_file and unduplicates them.
-        By default it will use the newest (highest uid) record as master and delete the older records.");
+        $this->setDescription('Finds duplicates in sys_file and unduplicates them.
+        By default it will use the newest (highest uid) record as master and delete the older records.');
         $this->setHelp(
-            "currently fix references in " . LF .
-            "- sys_file_reference::link " . LF .
-            "- sys_file_reference::uid_local " . LF .
-            "- tt_content::headerlink " . LF .
-            "- tt_content::bodytext " . LF .
-            "- tx_news_domain_model_news::bodytext " . LF .
-            "- tx_news_domain_model_news::internalurl " . LF .
-            "AND the remove the duplicate in sys_file and sys_file_metadata"
+            'currently fix references in ' . LF .
+            '- sys_file_reference::link ' . LF .
+            '- sys_file_reference::uid_local ' . LF .
+            '- tt_content::headerlink ' . LF .
+            '- tt_content::bodytext ' . LF .
+            '- tx_news_domain_model_news::bodytext ' . LF .
+            '- tx_news_domain_model_news::internalurl ' . LF .
+            'AND the remove the duplicate in sys_file and sys_file_metadata'
         );
         $this->addOption(
-            "dry-run",
-            "d",
+            'dry-run',
+            'd',
             InputOption::VALUE_NONE,
-            "If set, all database updates are not executed"
+            'If set, all database updates are not executed'
         )
             ->addOption(
-                "identifier",
-                "i",
+                'identifier',
+                'i',
                 InputOption::VALUE_REQUIRED,
-                "Only use this identifier"
+                'Only use this identifier'
             )
             ->addOption(
-                "storage",
-                "s",
+                'storage',
+                's',
                 InputOption::VALUE_REQUIRED,
-                "Only use this storage",
+                'Only use this storage',
                 -1
             )
             ->addOption(
-                "force",
-                "f",
+                'force',
+                'f',
                 InputOption::VALUE_OPTIONAL,
-                "Force keep or overwrite of metadata of the master record in case of conflict. Possible values: keep, keep-nonempty.
-                Default: overwrite. Keep-nonempty is keeping only nonempty metadata in master, but updating the empty.",
+                'Force keep or overwrite of metadata of the master record in case of conflict. Possible values: keep, keep-nonempty.
+                Default: overwrite. Keep-nonempty is keeping only nonempty metadata in master, but updating the empty.',
                 false
             )
             ->addOption(
-                "keep-oldest",
-                "o",
+                'keep-oldest',
+                'o',
                 InputOption::VALUE_NONE,
-                "Use the oldest record as master instead of the newest",
+                'Use the oldest record as master instead of the newest',
             )
             ->addOption(
-                "interactive",
-                "a",
+                'interactive',
+                'a',
                 InputOption::VALUE_NONE,
-                "When encountering a conflict, ask for user input to determine which record should be kept.",
+                'When encountering a conflict, ask for user input to determine which record should be kept.',
             )
             ->addOption(
-                "meta-fields",
-                "m",
+                'meta-fields',
+                'm',
                 InputOption::VALUE_REQUIRED,
-                "Specify a comma seperated list of fields to check for metadata comparison.
-                Default description, with EXT:filemetadata: description, caption, copyright"
+                'Specify a comma seperated list of fields to check for metadata comparison.
+                Default description, with EXT:filemetadata: description, caption, copyright'
             )->addOption(
-                "update-refindex",
-                "u",
+                'update-refindex',
+                'u',
                 InputOption::VALUE_NONE,
-                "Setting this option automatically updates the reference index and does not ask on command line.
-                Alternatively, use -n to avoid the interactive mode"
+                'Setting this option automatically updates the reference index and does not ask on command line.
+                Alternatively, use -n to avoid the interactive mode'
             );
     }
 
     /**
      * make sure we do not have duplicate records with same language
-     * @param array $oldMetadataRecords
-     * @return mixed
      * @throws UnduplicatorException
      */
     public function checkDuplicateMetadataRecords(array $oldMetadataRecords): void
@@ -185,7 +166,7 @@ class UnduplicateCommand extends Command
         $languageRecords = [];
         foreach ($oldMetadataRecords as $oldMetadata) {
             if (isset($languageRecords[$oldMetadata['sys_language_uid']])) {
-                throw new UnduplicatorException("More than one metadata record for language " . $oldMetadata['sys_language_uid']);
+                throw new UnduplicatorException('More than one metadata record for language ' . $oldMetadata['sys_language_uid'], 7813804023);
             }
             $languageRecords[$oldMetadata['sys_language_uid']][] = $oldMetadata;
         }
@@ -194,8 +175,6 @@ class UnduplicateCommand extends Command
     /**
      * Executes the command
      *
-     * @param InputInterface $input
-     * @param OutputInterface $output
      * @throws Exception
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -207,34 +186,31 @@ class UnduplicateCommand extends Command
         // Update the reference index
         $this->updateReferenceIndex($input);
 
-        $this->dryRun = $input->getOption("dry-run");
-        $this->keepOldest = $input->getOption("keep-oldest");
-        $onlyThisIdentifier = $input->getOption("identifier");
-        $this->storage = (int)$input->getOption("storage") ?? -1;
+        $this->dryRun = $input->getOption('dry-run');
+        $this->keepOldest = $input->getOption('keep-oldest');
+        $onlyThisIdentifier = $input->getOption('identifier');
+        $this->storage = (int)$input->getOption('storage') ?? -1;
 
-        if ($input->hasArgument("meta-fields")) {
-            $this->fieldsToCheck = array_map("trim", explode(",", $input->getOption("meta-fields")));
-        } elseif (ExtensionManagementUtility::isLoaded("filemetadata")) {
+        if ($input->hasArgument('meta-fields')) {
+            $this->fieldsToCheck = array_map(trim(...), explode(',', (string)$input->getOption('meta-fields')));
+        } elseif (ExtensionManagementUtility::isLoaded('filemetadata')) {
             // add default values in case the filemetadata extension is loaded
             $this->fieldsToCheck = array_merge($this->fieldsToCheck, ['caption", "copyright']);
         }
 
-        $this->output->writeln("<info>Using metadata fields: " . implode(", ", $this->fieldsToCheck) . "</info>");
+        $this->output->writeln('<info>Using metadata fields: ' . implode(', ', $this->fieldsToCheck) . '</info>');
 
         $this->metadataHandler = new MetadataUpdateHandler($this->dryRun, $this->input, $this->output, $this->fieldsToCheck, $this->connectionPool);
 
         try {
             $this->runOn($onlyThisIdentifier);
         } catch (UnduplicatorException $e) {
-            $this->output->writeln("<error>" . $e->getMessage() . "</error>");
+            $this->output->writeln('<error>' . $e->getMessage() . '</error>');
         }
         return 0;
     }
 
     /**
-     * @param mixed $onlyThisIdentifier
-     * @param int $onlyThisStorage
-     * @return void
      * @throws Exception
      */
     public function runOn(mixed $onlyThisIdentifier): void
@@ -243,9 +219,9 @@ class UnduplicateCommand extends Command
         $statement = $this->findDuplicates($onlyThisIdentifier);
         $foundDuplicates = 0;
         while ($row = $statement->fetchAssociative()) {
-            $identifier = $row['identifier'] ?? "";
-            if ($identifier === "") {
-                $this->output->warning("Found empty identifier");
+            $identifier = $row['identifier'] ?? '';
+            if ($identifier === '') {
+                $this->output->warning('Found empty identifier');
                 continue;
             }
 
@@ -275,10 +251,10 @@ class UnduplicateCommand extends Command
             }
         }
         if (!$foundDuplicates) {
-            $this->output->success("No duplicates found");
+            $this->output->success('No duplicates found');
         }
         if ($hasConflicts) {
-            $this->output->warning("Conflicts found. Manual action required. Run with -v to see details.");
+            $this->output->warning('Conflicts found. Manual action required. Run with -v to see details.');
         }
     }
 
@@ -287,27 +263,23 @@ class UnduplicateCommand extends Command
      * if checked case-insensitively.
      *
      * Database may be case-insensitive, e.g. charset "utf8mb5", collation "utf8mb4_unicode_ci".
-     *
-     * @param mixed $onlyThisIdentifier
-     * @param int $storage
-     * @return Result
      */
     public function findDuplicates(mixed $onlyThisIdentifier): Result
     {
-        $queryBuilder = $this->connectionPool->getQueryBuilderForTable("sys_file");
-        $queryBuilder->count("*")
-            ->from("sys_file")
-            ->having("COUNT(*) > 1");
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
+        $queryBuilder->count('*')
+            ->from('sys_file')
+            ->having('COUNT(*) > 1');
         $whereExpressions = [];
         if ($onlyThisIdentifier) {
             $whereExpressions[] = $queryBuilder->expr()->eq(
-                "identifier",
-                $queryBuilder->createNamedParameter($onlyThisIdentifier, \PDO::PARAM_STR)
+                'identifier',
+                $queryBuilder->createNamedParameter($onlyThisIdentifier, Connection::PARAM_STR)
             );
         }
         if ($this->storage > -1) {
             $whereExpressions[] = $queryBuilder->expr()->eq(
-                "storage",
+                'storage',
                 $queryBuilder->createNamedParameter($this->storage, Connection::PARAM_INT)
             );
         }
@@ -318,18 +290,16 @@ class UnduplicateCommand extends Command
         $concreteQueryBuilder = $queryBuilder->getConcreteQueryBuilder();
 
         // GROUP BY BINARY `identifier`,`storage
-        $concreteQueryBuilder->groupBy("MD5(identifier)");
-        $concreteQueryBuilder->addGroupBy("storage");
+        $concreteQueryBuilder->groupBy('MD5(identifier)');
+        $concreteQueryBuilder->addGroupBy('storage');
         // SELECT MAX(`identifier`) AS identifier,`storage`
-        $concreteQueryBuilder->addSelect("MAX(identifier) AS identifier, storage");
+        $concreteQueryBuilder->addSelect('MAX(identifier) AS identifier, storage');
 
         if ($this->output->isDebug()) {
-            $this->output->writeln("sql=" . $queryBuilder->getSQL(), OutputInterface::VERBOSITY_VERBOSE);
+            $this->output->writeln('sql=' . $queryBuilder->getSQL(), OutputInterface::VERBOSITY_VERBOSE);
         }
-
-        $statement = $queryBuilder
+        return $queryBuilder
             ->executeQuery();
-        return $statement;
     }
 
     /**
@@ -339,35 +309,36 @@ class UnduplicateCommand extends Command
      */
     private function findDuplicateFilesForIdentifier(string $identifier, int $storage): array
     {
-        $fileQueryBuilder = $this->connectionPool->getQueryBuilderForTable("sys_file");
+        $fileQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
 
-        $fileQueryBuilder->select("uid", "identifier")
-            ->from("sys_file")
+        $fileQueryBuilder->select('uid', 'identifier')
+            ->from('sys_file')
             ->where(
                 $fileQueryBuilder->expr()->eq(
-                    "storage",
+                    'storage',
                     $fileQueryBuilder->createNamedParameter($storage, Connection::PARAM_INT)
                 )
-            )->orderBy("uid", $this->keepOldest ? "ASC" : "DESC");
+            )->orderBy('uid', $this->keepOldest ? 'ASC' : 'DESC');
 
-        $whereClause = "MD5(identifier) = MD5(" . $fileQueryBuilder->createNamedParameter($identifier, \PDO::PARAM_STR) . ")";
-        $fileQueryBuilder->add("where", $whereClause);
+        $whereClause = 'MD5(identifier) = MD5(' . $fileQueryBuilder->createNamedParameter($identifier, Connection::PARAM_STR) . ')';
+        $fileQueryBuilder->add('where', $whereClause);
 
         return $fileQueryBuilder->executeQuery()
             ->fetchAllAssociative();
     }
 
     /**
-     * @param int $masterFileUid
-     * @param int $oldFileUid
-     * @param mixed $identifier
-     * @param int $storage
      * @throws Exception
      */
-    public function processDuplicate(int $masterFileUid, array $masterMetadataRecords, int $oldFileUid, mixed $identifier, int $storage): bool
-    {
+    public function processDuplicate(
+        int $masterFileUid,
+        array $masterMetadataRecords,
+        int $oldFileUid,
+        mixed $identifier,
+        int $storage
+    ): bool {
         $this->output->writeln(sprintf(
-            "Unduplicate sys_file: uid=%d identifier=\"%s\", storage=%s (master uid=%d)",
+            'Unduplicate sys_file: uid=%d identifier="%s", storage=%s (master uid=%d)',
             $oldFileUid,
             $identifier,
             $storage,
@@ -400,24 +371,21 @@ class UnduplicateCommand extends Command
 
     private function getMetadataRecords(int $uid): array
     {
-        $metadataQueryBuilder = $this->connectionPool->getQueryBuilderForTable("sys_file_metadata");
-        $metadataQueryBuilder->addSelect("*");
-        $metadata = $metadataQueryBuilder->from("sys_file_metadata")
+        $metadataQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_metadata');
+        $metadataQueryBuilder->addSelect('*');
+
+        return $metadataQueryBuilder->from('sys_file_metadata')
             ->where(
                 $metadataQueryBuilder->expr()->eq(
-                    "file",
-                    $metadataQueryBuilder->createNamedParameter($uid, \PDO::PARAM_INT)
+                    'file',
+                    $metadataQueryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
                 )
             )
-            ->executeQuery()->fetchAllAssociative();
-
-        return $metadata;
+            ->executeQuery()
+            ->fetchAllAssociative();
     }
 
     /**
-     * @param int $masterFileUid
-     * @param int $oldFileUid
-     * @return bool
      * @throws Exception
      */
     private function findAndUpdateReferences(int $masterFileUid, int $oldFileUid): void
@@ -428,8 +396,7 @@ class UnduplicateCommand extends Command
             return;
         }
 
-        $deleteRecords = true;
-        $tableRows = null;
+        $tableRows = [];
         while ($referenceRow = $referenceStatement->fetchAssociative()) {
             $tableRows[] = [
                 $referenceRow['hash'],
@@ -445,13 +412,13 @@ class UnduplicateCommand extends Command
             }
         }
         if ($this->output->isVerbose()) {
-            $this->output->writeln(" -> <comment>Updated sys_refindex</comment>");
+            $this->output->writeln(' -> <comment>Updated sys_refindex</comment>');
             $tableHeaders = [
-                "hash",
-                "tablename",
-                "recuid",
-                "field",
-                "softref_key",
+                'hash',
+                'tablename',
+                'recuid',
+                'field',
+                'softref_key',
             ];
             $this->output->table($tableHeaders, $tableRows);
         }
@@ -459,29 +426,28 @@ class UnduplicateCommand extends Command
 
     public function getSysRefIndexData(int $oldFileUid): Result
     {
-        $referenceQueryBuilder = $this->connectionPool->getQueryBuilderForTable("sys_refindex");
+        $referenceQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_refindex');
         $referenceExpr = $referenceQueryBuilder->expr();
-        $referenceStatement = $referenceQueryBuilder->select("*")
-            ->from("sys_refindex")
+        return $referenceQueryBuilder->select('*')
+            ->from('sys_refindex')
             ->where(
                 $referenceExpr->eq(
-                    "ref_table",
-                    $referenceQueryBuilder->createNamedParameter("sys_file")
+                    'ref_table',
+                    $referenceQueryBuilder->createNamedParameter('sys_file')
                 ),
                 $referenceExpr->eq(
-                    "ref_uid",
+                    'ref_uid',
                     $referenceQueryBuilder->createNamedParameter($oldFileUid)
                 ),
                 $referenceExpr->neq(
-                    "tablename",
-                    $referenceQueryBuilder->createNamedParameter("sys_file_metadata")
+                    'tablename',
+                    $referenceQueryBuilder->createNamedParameter('sys_file_metadata')
                 )
             )
             ->executeQuery();
-        return $referenceStatement;
     }
 
-    private function updateReferencedRecord(int $masterFileUid, array $referenceRow)
+    private function updateReferencedRecord(int $masterFileUid, array $referenceRow): void
     {
         if (empty($referenceRow['softref_key'])) {
             $value = $masterFileUid;
@@ -492,7 +458,7 @@ class UnduplicateCommand extends Command
                 ->from($referenceRow['tablename'])
                 ->where(
                     $recordQueryBuilder->expr()->eq(
-                        "uid",
+                        'uid',
                         $recordQueryBuilder->createNamedParameter($referenceRow['recuid'])
                     )
                 )
@@ -503,7 +469,7 @@ class UnduplicateCommand extends Command
             // update file references
             $old = 't3://file?uid=' . $referenceRow['ref_uid'];
             $new = 't3://file?uid=' . $masterFileUid;
-            $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '$1', $value);
+            $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '$1', (string)$value);
 
             // update rte_ckeditor_image references
             if (ExtensionManagementUtility::isLoaded('rte_ckeditor_image')) {
@@ -522,59 +488,52 @@ class UnduplicateCommand extends Command
             ->where(
                 $recordUpdateExpr->eq(
                     'uid',
-                    $recordUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_INT)
+                    $recordUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], Connection::PARAM_INT)
                 )
             )->executeStatement();
     }
 
-    private function updateReference(int $masterFileUid, array $referenceRow)
+    private function updateReference(int $masterFileUid, array $referenceRow): void
     {
         $referenceUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_refindex');
         $referenceUpdateExpr = $referenceUpdateQueryBuilder->expr();
         $referenceUpdateQueryBuilder->update('sys_refindex')
-            ->set('ref_uid', $masterFileUid)->where($referenceUpdateExpr->eq(
-                'hash',
-                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['hash'], \PDO::PARAM_STR)
-            ), $referenceUpdateExpr->eq(
-                'tablename',
-                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['tablename'], \PDO::PARAM_STR)
-            ), $referenceUpdateExpr->eq(
-                'recuid',
-                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], \PDO::PARAM_STR)
-            ), $referenceUpdateExpr->eq(
-                'field',
-                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['field'], \PDO::PARAM_STR)
-            ), $referenceUpdateExpr->eq(
-                'ref_table',
-                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_table'], \PDO::PARAM_STR)
-            ), $referenceUpdateExpr->eq(
-                'ref_uid',
-                $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_uid'], \PDO::PARAM_STR)
-            ))->executeStatement();
+            ->set('ref_uid', $masterFileUid)->where(
+                $referenceUpdateExpr->eq(
+                    'hash',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['hash'], Connection::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'tablename',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['tablename'], Connection::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'recuid',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['recuid'], Connection::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'field',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['field'], Connection::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'ref_table',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_table'], Connection::PARAM_STR)
+                ),
+                $referenceUpdateExpr->eq(
+                    'ref_uid',
+                    $referenceUpdateQueryBuilder->createNamedParameter($referenceRow['ref_uid'], Connection::PARAM_STR)
+                )
+            )->executeStatement();
     }
 
-    private function deleteOldFileRecord(int $oldFileUid)
+    private function deleteOldFileRecord(int $oldFileUid): void
     {
         $fileDeleteQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file');
         $fileDeleteQueryBuilder->delete('sys_file')
             ->where(
                 $fileDeleteQueryBuilder->expr()->eq(
                     'uid',
-                    $fileDeleteQueryBuilder->createNamedParameter($oldFileUid, \PDO::PARAM_INT)
-                )
-            )
-            ->executeStatement();
-    }
-
-    private function markOldFileReferenceRecordDeleted(int $oldFileUid)
-    {
-        $fileDeleteQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_reference');
-        $fileDeleteQueryBuilder->update('sys_file_reference')
-            ->set('deleted', 1)
-            ->where(
-                $fileDeleteQueryBuilder->expr()->eq(
-                    'uid_local',
-                    $fileDeleteQueryBuilder->createNamedParameter($oldFileUid, \PDO::PARAM_INT)
+                    $fileDeleteQueryBuilder->createNamedParameter($oldFileUid, Connection::PARAM_INT)
                 )
             )
             ->executeStatement();
@@ -601,7 +560,7 @@ class UnduplicateCommand extends Command
             ->where(
                 $recordQueryBuilder->expr()->eq(
                     'original',
-                    $recordQueryBuilder->createNamedParameter($oldFileUid, \PDO::PARAM_INT)
+                    $recordQueryBuilder->createNamedParameter($oldFileUid, Connection::PARAM_INT)
                 )
             )
             ->executeStatement();

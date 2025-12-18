@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace ElementareTeilchen\Unduplicator\Tests\Functional\Command;
 
 use PHPUnit\Framework\Attributes\Test;
-use RuntimeException;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 class UnduplicateCommandTest extends FunctionalTestCase
 {
-
-    const BASE_COMMAND = 'unduplicate:sysfile -n';
+    public const BASE_COMMAND = 'unduplicate:sysfile -n';
 
     #[Test] public function unduplicateCommandReturnsZeroIfNoDuplicates(): void
     {
@@ -88,7 +86,6 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
-
     #[Test] public function unduplicateCommandFixesDuplicatesWithMetadata(): void
     {
         $this->importCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata.csv');
@@ -99,7 +96,6 @@ class UnduplicateCommandTest extends FunctionalTestCase
         $this->assertCSVDataSet(__DIR__ . '/DataSet/sys_file_duplicates_with_metadata_RESULT.csv');
         self::assertEquals(0, $result['status']);
     }
-
 
     #[Test] public function unduplicateCommandFixesDuplicatesWithLanguagesMetadata(): void
     {
@@ -175,7 +171,6 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
-
     /**
      * based on TYPO3\CMS\Core\Tests\Functional\Command\AbstractCommandTest::executeConsoleCommand
      *   we had to change path for typo3 command because EXT:core/bin/typo3 does not exist in Composer installation
@@ -184,8 +179,9 @@ class UnduplicateCommandTest extends FunctionalTestCase
     {
         $typo3File = __DIR__ . '/../../../bin/typo3';
         if (!file_exists($typo3File)) {
-            throw new RuntimeException(
-                sprintf('Executable file <typo3> not found (using path <%s>). Make sure config:bin-dir is set to \'bin\' in composer.json', $typo3File)
+            throw new \RuntimeException(
+                sprintf('Executable file <typo3> not found (using path <%s>). Make sure config:bin-dir is set to \'bin\' in composer.json', $typo3File),
+                2791340354
             );
         }
 

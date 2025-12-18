@@ -7,38 +7,35 @@ namespace ElementareTeilchen\Unduplicator\Metadata;
 use Doctrine\DBAL\Exception;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 
 class MetadataUpdateHandler
 {
-
-    /**
-     * @var String|bool
-     */
-    private $force = false;
+    private string|bool $force = false;
 
     public function __construct(
-        private bool $dryRun,
-        private InputInterface $input,
-        private SymfonyStyle $output,
-        private array $fieldsToCheck,
-        private ConnectionPool $connectionPool
+        private readonly bool $dryRun,
+        private readonly InputInterface $input,
+        private readonly SymfonyStyle $output,
+        private readonly array $fieldsToCheck,
+        private readonly ConnectionPool $connectionPool
     ) {
-        $this->force = $input->getOption("force"); // force will be null if no value is passed -> overwrite
+        $this->force = $input->getOption('force'); // force will be null if no value is passed -> overwrite
         if ($this->force === null) {
-            $this->force = "overwrite";
+            $this->force = 'overwrite';
         }
     }
 
-
     /**
-     * @param int $masterFileUid
-     * @param int $oldFileUid
-     * @return bool
      * @throws Exception
      */
-    public function updateMetadata(int $masterFileUid, array $masterMetadataRecords, int $oldFileUid, array $oldMetadataRecords): bool
-    {
+    public function updateMetadata(
+        int $masterFileUid,
+        array $masterMetadataRecords,
+        int $oldFileUid,
+        array $oldMetadataRecords
+    ): bool {
 
         $deleteRecords = true;
         // iterate over all languages
@@ -65,17 +62,12 @@ class MetadataUpdateHandler
         return $deleteRecords;
     }
 
-
-    /**
-     * @param MetadataUpdateObject $metadata
-     * @return bool
-     */
     public function updateMetadataRecord(MetadataUpdateObject $metadata): bool
     {
         if ($metadata->isOldEmtpyt() || $metadata->isOldSameAsMaster()) { // check if record is empty or if the values are the same as in master
 
             if ($this->output->isVerbose()) {
-                $this->output->writeln("\t<info>Old metadata " . $oldUid . " is empty or same as in master for sys_language_uid " . $languageUid . "</info>");
+                $this->output->writeln("\t<info>Old metadata " . $metadata->getOldUid() . ' is empty or same as in master for sys_language_uid ' . $metadata->getLanguageUid() . '</info>');
             }
 
             $this->metadataHandleNoUpdate($metadata->getLanguageUid(), $metadata->getOldUid());
@@ -84,9 +76,9 @@ class MetadataUpdateHandler
 
             if ($this->output->isVerbose()) {
                 if ($metadata->isMasterEmpty()) {
-                    $this->output->writeln("\t<info>Master metadata " . $metadata->getMasterUid() . " is empty for sys_language_uid " . $metadata->getLanguageUid() . "</info>");
-                } else if ($this->force !== false) {
-                    if ($this->force !== "keep") {
+                    $this->output->writeln("\t<info>Master metadata " . $metadata->getMasterUid() . ' is empty for sys_language_uid ' . $metadata->getLanguageUid() . '</info>');
+                } elseif ($this->force !== false) {
+                    if ($this->force !== 'keep') {
                         $this->output->writeln("\t<info>Force overwriting metadata in master.</info>");
                     } else {
                         $this->output->writeln("\t<info>Force keeping metadata in master.</info>");
@@ -105,8 +97,6 @@ class MetadataUpdateHandler
 
     /**
      * @param $languageUid
-     * @param mixed $oldUid
-     * @return void
      */
     public function metadataHandleNoUpdate($languageUid, mixed $oldUid): void
     {
@@ -120,19 +110,15 @@ class MetadataUpdateHandler
         }
     }
 
-    /**
-     * @param MetadataUpdateObject $metadata
-     * @return void
-     */
     public function metadataHandleUpdate(MetadataUpdateObject $metadata): void
     {
 
         if ($this->force === false ||
-            $this->force === "overwrite" ||
-            $metadata->isMasterEmpty() && $this->force === "keep-nonempty") {
+            $this->force === 'overwrite' ||
+            $metadata->isMasterEmpty() && $this->force === 'keep-nonempty') {
 
             if ($this->output->isVerbose()) {
-                $this->output->writeln("\t -> <info>" . ($metadata->getMasterUid() ? "Updating" : "Creating") . " master metadata record</info>");
+                $this->output->writeln("\t -> <info>" . ($metadata->getMasterUid() ? 'Updating' : 'Creating') . ' master metadata record</info>');
             }
 
             if (!$this->dryRun) {
@@ -145,7 +131,7 @@ class MetadataUpdateHandler
         }
 
         if ($this->output->isVerbose()) {
-            $this->output->writeln("\t -> <info>Deleting old metadata record " . $metadata->getOldUid() . "</info>");
+            $this->output->writeln("\t -> <info>Deleting old metadata record " . $metadata->getOldUid() . '</info>');
         }
 
         if (!$this->dryRun) {
@@ -154,18 +140,14 @@ class MetadataUpdateHandler
         }
     }
 
-    /**
-     * @param MetadataUpdateObject $metadata
-     * @return false
-     */
     public function metadataHandleConflict(MetadataUpdateObject $metadata): bool
     {
         $interactive = $this->input->getOption('interactive');
 
-        $this->output->writeln("\t<error>Old metadata " . $metadata->getOldUid() . " with sys_language_uid " . $metadata->getLanguageUid() . " is not empty and conflicts with the master data. " . ($interactive ? "Please choose what to do." : "Not deleting this record") . ".</error>");
+        $this->output->writeln("\t<error>Old metadata " . $metadata->getOldUid() . ' with sys_language_uid ' . $metadata->getLanguageUid() . ' is not empty and conflicts with the master data. ' . ($interactive ? 'Please choose what to do.' : 'Not deleting this record') . '.</error>');
         if ($this->output->isVerbose()) {
-            $this->output->writeln("\t -> Old metadata   : <comment>" . json_encode($metadata->getOldClean()) . "</comment>");
-            $this->output->writeln("\t -> Master metadata: <comment>" . json_encode($metadata->getMasterClean()) . "</comment>");
+            $this->output->writeln("\t -> Old metadata   : <comment>" . json_encode($metadata->getOldClean()) . '</comment>');
+            $this->output->writeln("\t -> Master metadata: <comment>" . json_encode($metadata->getMasterClean()) . '</comment>');
         }
 
         if ($interactive) {
@@ -180,7 +162,7 @@ class MetadataUpdateHandler
                         $this->metadataHandleNoUpdate($metadata->getLanguageUid(), $metadata->getOldUid());
                         return true;
                     case 's':
-                        $this->output->writeln("\t<info>Skipping record. Not deleting any duplicate records related to file " . $metadata->getMasterFileUid() . "</info>");
+                        $this->output->writeln("\t<info>Skipping record. Not deleting any duplicate records related to file " . $metadata->getMasterFileUid() . '</info>');
                         return false;
                     case 'h':
                     default:
@@ -198,11 +180,10 @@ class MetadataUpdateHandler
         return false;
     }
 
-
-    private function updateMasterMetadata(int $masterMetadataUid, array $metadata)
+    private function updateMasterMetadata(int $masterMetadataUid, array $metadata): void
     {
-        $metadataUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable("sys_file_metadata");
-        $metadataUpdateQueryBuilder->update("sys_file_metadata");
+        $metadataUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_metadata');
+        $metadataUpdateQueryBuilder->update('sys_file_metadata');
         foreach ($this->fieldsToCheck as $field) {
             if (!isset($metadata[$field])) {
                 $this->output->writeln("\t\t<warning>Field \'" . $field . "\' does not exist</warning>");
@@ -213,54 +194,50 @@ class MetadataUpdateHandler
         $metadataUpdateQueryBuilder->where(
             $metadataUpdateQueryBuilder->expr()->eq(
                 'uid',
-                $metadataUpdateQueryBuilder->createNamedParameter($masterMetadataUid, \PDO::PARAM_INT)
+                $metadataUpdateQueryBuilder->createNamedParameter($masterMetadataUid, Connection::PARAM_INT)
             )
         )
             ->executeStatement();
     }
 
-    private function createMasterMetadata(int $masterFileUid, array $metadata)
+    private function createMasterMetadata(int $masterFileUid, array $metadata): void
     {
         unset($metadata['uid']);
         $metadata['file'] = $masterFileUid;
-        $metadataUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable("sys_file_metadata");
-        $metadataUpdateQueryBuilder->insert("sys_file_metadata")
+        $metadataUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_metadata');
+        $metadataUpdateQueryBuilder->insert('sys_file_metadata')
             ->values($metadata)
             ->executeStatement();
     }
 
-    /**
-     * @param int $uid
-     * @return mixed
-     */
-    public function deleteMetadataRecord(int $uid)
+    public function deleteMetadataRecord(int $uid): int
     {
-        $queryBuilder = $this->connectionPool->getQueryBuilderForTable("sys_file_metadata");
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_metadata');
         return $queryBuilder
-            ->delete("sys_file_metadata")
+            ->delete('sys_file_metadata')
             ->where(
                 $queryBuilder->expr()->eq(
-                    "uid",
-                    $queryBuilder->createNamedParameter($uid, \PDO::PARAM_INT)
+                    'uid',
+                    $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
                 )
             )
             ->executeStatement();
     }
 
-    private function deleteMetadataReference(int $uid)
+    private function deleteMetadataReference(int $uid): void
     {
-        $referenceDeleteQueryBuilder = $this->connectionPool->getQueryBuilderForTable("sys_refindex");
+        $referenceDeleteQueryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_refindex');
         $referenceDeleteExpr = $referenceDeleteQueryBuilder->expr();
         $referenceDeleteQueryBuilder
-            ->delete("sys_refindex")
+            ->delete('sys_refindex')
             ->where(
                 $referenceDeleteExpr->eq(
-                    "tablename",
-                    $referenceDeleteQueryBuilder->createNamedParameter("sys_file_metadata", \PDO::PARAM_STR)
+                    'tablename',
+                    $referenceDeleteQueryBuilder->createNamedParameter('sys_file_metadata', Connection::PARAM_STR)
                 ),
                 $referenceDeleteExpr->eq(
-                    "recuid",
-                    $referenceDeleteQueryBuilder->createNamedParameter($uid, \PDO::PARAM_INT)
+                    'recuid',
+                    $referenceDeleteQueryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
                 )
             )->executeStatement();
     }

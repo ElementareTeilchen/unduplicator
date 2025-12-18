@@ -6,14 +6,12 @@ namespace ElementareTeilchen\Unduplicator\Metadata;
 
 class MetadataUpdateObject
 {
-
     public function __construct(
         public readonly int $masterFileUid,
         public readonly array $masterMetadata,
         public readonly array $oldMetadata,
         public readonly array $fieldsToCheck
-    ) {
-    }
+    ) {}
 
     public function getOldMetadata(): array
     {
