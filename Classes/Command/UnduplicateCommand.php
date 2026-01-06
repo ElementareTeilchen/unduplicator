@@ -57,6 +57,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * (4) do extra compare in PHP
  *   => (4) is safest option and used in this class (though it may be a little inefficient)
  */
+#[AsCommand(
+    name: 'unduplicate:sysfile',
+    description: 'Unduplicate duplicate sys_file entries'
+)]
 class UnduplicateCommand extends Command
 {
     /**
