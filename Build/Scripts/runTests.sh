@@ -20,7 +20,8 @@ waitFor() {
               echo \"Can not connect to ${HOST} port ${PORT}. Aborting.\";
               exit 1;
             fi;
-            sleep 1;
+            # Increase timeout in case a container needs more than 10 seconds to boot up
+            sleep 3;
             COUNT=\$((COUNT + 1));
         done;
     "
