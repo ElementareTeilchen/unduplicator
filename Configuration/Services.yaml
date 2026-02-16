@@ -6,8 +6,3 @@ services:
 
   ElementareTeilchen\Unduplicator\:
     resource: '../Classes/*'
-
-  ElementareTeilchen\Unduplicator\Command\UnduplicateCommand:
-    tags:
-      - name: 'console.command'
-        command: 'unduplicate:sysfile'

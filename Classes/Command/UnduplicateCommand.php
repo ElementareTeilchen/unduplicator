@@ -8,6 +8,7 @@ use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Result;
 use ElementareTeilchen\Unduplicator\Exception\UnduplicatorException;
 use ElementareTeilchen\Unduplicator\Metadata\MetadataUpdateHandler;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
