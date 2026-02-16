@@ -4,5 +4,12 @@
 ,2,"/test/abc.jpg",1
 "sys_file_processedfile",,,,,,,
 ,"uid","original","storage","identifier"
-,"991","1","1","/_processed_/3/c/csm_myfile_975bcb8fba.jpg"
-,"992","2","1","/_processed_/3/c/csm_myfile_23231sdi99.jpg"
+,"101","1","1","/_processed_/3/c/csm_myfile_975bcb8fba.jpg"
+,"102","1","1",""
+,"103","1","0","/_processed_/3/c/csm_myfile_975bcb8fba.jpg"
+,"104","1","0",""
+,"105","1","1","/_processed_/nonexistingfile.jpg"
+,"201","2","1","/_processed_/3/c/csm_myfile_23231sdi99.jpg"
+,"202","2","1",""
+,"203","2","0","/_processed_/3/c/csm_myfile_23231sdi99.jpg"
+,"204","2","0",""
