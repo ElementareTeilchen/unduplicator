@@ -13,8 +13,8 @@ on:
 
 jobs:
 
-  all_core_13:
-    name: "all core-13"
+  runTests:
+    name: "runTests"
     runs-on: ubuntu-22.04
     strategy:
       # This prevents cancellation of matrix job runs, if one/two already failed and let the
@@ -22,13 +22,13 @@ jobs:
       fail-fast: false
       matrix:
         php: [ '8.2', '8.3', '8.4', '8.5' ]
-        minMax: [ 'composerInstall']
+        typo3Version: [ 'typo3/cms-core:^12.4', 'typo3/cms-core:^13.4']
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
 
       - name: "Composer"
-        run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -s ${{ matrix.minMax }}
+        run: Build/Scripts/runTests.sh -p ${{ matrix.php }} -s composer -- update --with ${{ matrix.typo3Version }}
 
       - name: "Functional tests with mariadb"
         if: always()
