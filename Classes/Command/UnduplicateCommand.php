@@ -196,7 +196,7 @@ class UnduplicateCommand extends Command
         $onlyThisIdentifier = $input->getOption('identifier');
         $this->storage = (int)($input->getOption('storage') ?? -1);
 
-        if ($input->hasArgument('meta-fields')) {
+        if ($input->hasOption('meta-fields') && $input->getOption('meta-fields')) {
             $this->fieldsToCheck = array_map(trim(...), explode(',', (string)$input->getOption('meta-fields')));
         } elseif (ExtensionManagementUtility::isLoaded('filemetadata')) {
             // add default values in case the filemetadata extension is loaded
