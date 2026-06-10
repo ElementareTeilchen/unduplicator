@@ -64,7 +64,7 @@ class MetadataUpdateHandler
 
     public function updateMetadataRecord(MetadataUpdateObject $metadata): bool
     {
-        if ($metadata->isOldEmtpyt() || $metadata->isOldSameAsMaster()) { // check if record is empty or if the values are the same as in master
+        if ($metadata->isOldEmpty() || $metadata->isOldSameAsMaster()) { // check if record is empty or if the values are the same as in master
 
             if ($this->output->isVerbose()) {
                 $this->output->writeln("\t<info>Old metadata " . $metadata->getOldUid() . ' is empty or same as in master for sys_language_uid ' . $metadata->getLanguageUid() . '</info>');
@@ -72,7 +72,7 @@ class MetadataUpdateHandler
 
             $this->metadataHandleNoUpdate($metadata->getLanguageUid(), $metadata->getOldUid());
 
-        } elseif (!$metadata->isOldEmtpyt() && ($metadata->isMasterEmpty() || $this->force !== false)) { // check if master record has metadata, if not, copy the old ones
+        } elseif (!$metadata->isOldEmpty() && ($metadata->isMasterEmpty() || $this->force !== false)) { // check if master record has metadata, if not, copy the old ones
 
             if ($this->output->isVerbose()) {
                 if ($metadata->isMasterEmpty()) {

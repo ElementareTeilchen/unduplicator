@@ -38,7 +38,7 @@ class MetadataUpdateObject
         return $this->oldMetadata['sys_language_uid'];
     }
 
-    public function isOldEmtpyt(): bool
+    public function isOldEmpty(): bool
     {
         return empty($this->getOldClean());
     }

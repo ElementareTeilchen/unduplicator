@@ -99,13 +99,13 @@ class UnduplicateCommand extends Command
         $this->setDescription('Finds duplicates in sys_file and unduplicates them.
         By default it will use the newest (highest uid) record as master and delete the older records.');
         $this->setHelp(
-            'currently fix references in ' . LF .
-            '- sys_file_reference::link ' . LF .
-            '- sys_file_reference::uid_local ' . LF .
-            '- tt_content::headerlink ' . LF .
-            '- tt_content::bodytext ' . LF .
-            '- tx_news_domain_model_news::bodytext ' . LF .
-            '- tx_news_domain_model_news::internalurl ' . LF .
+            'currently fix references in ' . PHP_EOL .
+            '- sys_file_reference::link ' . PHP_EOL .
+            '- sys_file_reference::uid_local ' . PHP_EOL .
+            '- tt_content::headerlink ' . PHP_EOL .
+            '- tt_content::bodytext ' . PHP_EOL .
+            '- tx_news_domain_model_news::bodytext ' . PHP_EOL .
+            '- tx_news_domain_model_news::internalurl ' . PHP_EOL .
             'AND the remove the duplicate in sys_file and sys_file_metadata'
         );
         $this->addOption(
@@ -200,7 +200,7 @@ class UnduplicateCommand extends Command
             $this->fieldsToCheck = array_map(trim(...), explode(',', (string)$input->getOption('meta-fields')));
         } elseif (ExtensionManagementUtility::isLoaded('filemetadata')) {
             // add default values in case the filemetadata extension is loaded
-            $this->fieldsToCheck = array_merge($this->fieldsToCheck, ['caption", "copyright']);
+            $this->fieldsToCheck = array_merge($this->fieldsToCheck, ['caption', 'copyright']);
         }
 
         $this->output->writeln('<info>Using metadata fields: ' . implode(', ', $this->fieldsToCheck) . '</info>');
@@ -604,9 +604,8 @@ class UnduplicateCommand extends Command
      * - otherwise assume everything is fine
      *
      * @param InputInterface $input holds information about entered parameters
-     * @param SymfonyStyle $io necessary for outputting information
      */
-    protected function updateReferenceIndex(InputInterface $input)
+    protected function updateReferenceIndex(InputInterface $input): void
     {
         // Check for reference index to update
         if ($input->hasOption('update-refindex') && $input->getOption('update-refindex')) {

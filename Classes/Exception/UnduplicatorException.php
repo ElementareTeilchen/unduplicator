@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Elementareteilchen\Unduplicator\Exception;
+namespace ElementareTeilchen\Unduplicator\Exception;
 
 class UnduplicatorException extends \Exception
 {
-    public function __construct(string $message)
+    public function __construct(string $message, int $code = 1)
     {
-        parent::__construct($message, 1);
+        parent::__construct($message, $code);
     }
 
 }
