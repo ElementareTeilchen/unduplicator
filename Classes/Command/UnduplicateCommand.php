@@ -475,10 +475,13 @@ class UnduplicateCommand extends Command
             $new = 't3://file?uid=' . $masterFileUid;
             $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '$1', (string)$value);
 
-            // update RTE image references
-            $old = 'data-htmlarea-file-uid="' . $referenceRow['ref_uid'] . '"';
-            $new = 'data-htmlarea-file-uid="' . $masterFileUid . '"';
-            $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '$1', (string) $value);
+            // update rte_ckeditor_image references
+            if (ExtensionManagementUtility::isLoaded('rte_ckeditor_image')) {
+                // replace data-htmlarea-file-uid="312421"
+                $old = 'data-htmlarea-file-uid="' . $referenceRow['ref_uid'] . '"';
+                $new = 'data-htmlarea-file-uid="' . $masterFileUid . '"';
+                $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '$1', (string) $value);
+            }
         }
 
         $recordUpdateQueryBuilder = $this->connectionPool->getQueryBuilderForTable($referenceRow['tablename']);
