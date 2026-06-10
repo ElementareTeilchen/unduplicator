@@ -22,8 +22,6 @@ class UnduplicateCommandTest extends FunctionalTestCase
 
     protected array $testExtensionsToLoad = [
         'elementareteilchen/unduplicator',
-        'typo3/cms-rte-ckeditor',
-        'netresearch/rte-ckeditor-image',
     ];
 
     #[Test] public function unduplicateCommandReturnsZeroIfNoDuplicates(): void
