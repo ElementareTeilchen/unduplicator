@@ -72,7 +72,7 @@ class MetadataUpdateHandler
 
             $this->metadataHandleNoUpdate($metadata->getLanguageUid(), $metadata->getOldUid());
 
-        } elseif (!$metadata->isOldEmpty() && ($metadata->isMasterEmpty() || $this->force !== false)) { // check if master record has metadata, if not, copy the old ones
+        } elseif ($metadata->isMasterEmpty() || $this->force !== false) { // check if master record has metadata, if not, copy the old ones
 
             if ($this->output->isVerbose()) {
                 if ($metadata->isMasterEmpty()) {

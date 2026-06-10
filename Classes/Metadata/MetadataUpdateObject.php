@@ -40,12 +40,12 @@ class MetadataUpdateObject
 
     public function isOldEmpty(): bool
     {
-        return empty($this->getOldClean());
+        return $this->getOldClean() === [];
     }
 
     public function isMasterEmpty(): bool
     {
-        return empty($this->getMasterClean());
+        return $this->getMasterClean() === [];
     }
 
     public function hasMaster(): bool

@@ -194,7 +194,7 @@ class UnduplicateCommand extends Command
         $this->dryRun = $input->getOption('dry-run');
         $this->keepOldest = $input->getOption('keep-oldest');
         $onlyThisIdentifier = $input->getOption('identifier');
-        $this->storage = (int)$input->getOption('storage') ?? -1;
+        $this->storage = (int)($input->getOption('storage') ?? -1);
 
         if ($input->hasArgument('meta-fields')) {
             $this->fieldsToCheck = array_map(trim(...), explode(',', (string)$input->getOption('meta-fields')));
@@ -255,7 +255,7 @@ class UnduplicateCommand extends Command
                 $hasConflicts = $this->processDuplicate($masterFileUid, $masterMetadataRecords, $fileRow['uid'], $identifier, $storage) || $hasConflicts;
             }
         }
-        if (!$foundDuplicates) {
+        if ($foundDuplicates === 0) {
             $this->output->success('No duplicates found');
         }
         if ($hasConflicts) {
@@ -288,7 +288,7 @@ class UnduplicateCommand extends Command
                 $queryBuilder->createNamedParameter($this->storage, Connection::PARAM_INT)
             );
         }
-        if ($whereExpressions) {
+        if ($whereExpressions !== []) {
             $queryBuilder->where(...$whereExpressions);
         }
 
@@ -359,7 +359,6 @@ class UnduplicateCommand extends Command
 
         if ($deleteRecords) {
             $this->findAndUpdateReferences($masterFileUid, $oldFileUid);
-
             if ($this->output->isVerbose()) {
                 $this->output->writeln("\t<comment>Deleting sys_file and processedFile records</comment>");
             }
@@ -367,10 +366,8 @@ class UnduplicateCommand extends Command
                 $this->deleteOldFileRecord($oldFileUid);
                 $this->findAndDeleteOldProcessedFile($oldFileUid);
             }
-        } else {
-            if ($this->output->isVerbose()) {
-                $this->output->writeln("\t<comment>Keeping sys_file and processedFile records</comment>");
-            }
+        } elseif ($this->output->isVerbose()) {
+            $this->output->writeln("\t<comment>Keeping sys_file and processedFile records</comment>");
         }
 
         return !$deleteRecords;
@@ -483,7 +480,7 @@ class UnduplicateCommand extends Command
                 // replace data-htmlarea-file-uid="312421"
                 $old = 'data-htmlarea-file-uid="' . $referenceRow['ref_uid'] . '"';
                 $new = 'data-htmlarea-file-uid="' . $masterFileUid . '"';
-                $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '$1', $value);
+                $value = preg_replace('/' . preg_quote($old, '/') . '([^\d]|$)' . '/i', $new . '$1', (string) $value);
             }
         }
 
@@ -575,7 +572,7 @@ class UnduplicateCommand extends Command
 
     private function deleteProcessedFile(mixed $identifier, int $storageId): void
     {
-        if (empty($identifier) || empty($storageId)) {
+        if (empty($identifier) || $storageId === 0) {
             $this->output->writeln('<error>Empty identifier or storage id. Aborting delete of processed file</error>');
             return;
         }
