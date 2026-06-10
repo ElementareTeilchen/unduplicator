@@ -5,11 +5,26 @@ declare(strict_types=1);
 namespace ElementareTeilchen\Unduplicator\Tests\Functional\Command;
 
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Console\Input\StringInput;
+use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use TYPO3\CMS\Core\Authentication\CommandLineUserAuthentication;
+use TYPO3\CMS\Core\Console\Application as ConsoleApplication;
+use TYPO3\CMS\Core\Console\CommandRegistry;
+use TYPO3\CMS\Core\Core\Bootstrap;
+use TYPO3\CMS\Core\Information\Typo3Version;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 class UnduplicateCommandTest extends FunctionalTestCase
 {
     public const BASE_COMMAND = 'unduplicate:sysfile -n';
+
+    protected array $testExtensionsToLoad = [
+        'elementareteilchen/unduplicator',
+        'typo3/cms-rte-ckeditor',
+        'netresearch/rte-ckeditor-image',
+    ];
 
     #[Test] public function unduplicateCommandReturnsZeroIfNoDuplicates(): void
     {
@@ -177,28 +192,22 @@ class UnduplicateCommandTest extends FunctionalTestCase
      */
     protected function executeConsoleCommand(string $cmdline, ...$args): array
     {
-        $typo3File = __DIR__ . '/../../../bin/typo3';
-        if (!file_exists($typo3File)) {
-            throw new \RuntimeException(
-                sprintf('Executable file <typo3> not found (using path <%s>). Make sure config:bin-dir is set to \'bin\' in composer.json', $typo3File),
-                2791340354
-            );
-        }
+        $input = new StringInput(vsprintf($cmdline, array_map(escapeshellarg(...), $args)));
+        $input->setInteractive(false);
+        $output = new BufferedOutput();
 
-        $cmd = vsprintf(PHP_BINARY . ' ' . $typo3File
-            . ' ' . $cmdline, array_map(escapeshellarg(...), $args));
+        Bootstrap::initializeBackendUser(CommandLineUserAuthentication::class);
+        $GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->createFromUserPreferences($GLOBALS['BE_USER']);
 
-        $output = '';
-
-        $handle = popen($cmd, 'r');
-        while (!feof($handle)) {
-            $output .= fgets($handle, 4096);
-        }
-        $status = pclose($handle);
+        $application = new ConsoleApplication('TYPO3 CMS', (new Typo3Version())->getVersion());
+        $application->setAutoExit(false);
+        $application->setDispatcher($this->get(EventDispatcherInterface::class));
+        $application->setCommandLoader($this->get(CommandRegistry::class));
+        $status = $application->run($input, $output);
 
         return [
             'status' => $status,
-            'output' => $output,
+            'output' => $output->fetch(),
         ];
     }
 }
