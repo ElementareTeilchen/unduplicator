@@ -5,15 +5,6 @@ declare(strict_types=1);
 namespace ElementareTeilchen\Unduplicator\Tests\Functional\Command;
 
 use PHPUnit\Framework\Attributes\Test;
-use Symfony\Component\Console\Input\StringInput;
-use Symfony\Component\Console\Output\BufferedOutput;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
-use TYPO3\CMS\Core\Authentication\CommandLineUserAuthentication;
-use TYPO3\CMS\Core\Console\Application as ConsoleApplication;
-use TYPO3\CMS\Core\Console\CommandRegistry;
-use TYPO3\CMS\Core\Core\Bootstrap;
-use TYPO3\CMS\Core\Information\Typo3Version;
-use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 
 class UnduplicateCommandTest extends FunctionalTestCase
@@ -186,28 +177,32 @@ class UnduplicateCommandTest extends FunctionalTestCase
         self::assertEquals(0, $result['status']);
     }
 
-    /**
-     * based on TYPO3\CMS\Core\Tests\Functional\Command\AbstractCommandTest::executeConsoleCommand
-     *   we had to change path for typo3 command because EXT:core/bin/typo3 does not exist in Composer installation
-     */
     protected function executeConsoleCommand(string $cmdline, ...$args): array
     {
-        $input = new StringInput(vsprintf($cmdline, array_map(escapeshellarg(...), $args)));
-        $input->setInteractive(false);
-        $output = new BufferedOutput();
+        $typo3File = __DIR__ . '/../Fixtures/typo3-cli.php';
+        if (!file_exists($typo3File)) {
+            throw new \RuntimeException(
+                sprintf('Executable file <typo3> not found (using path <%s>).', $typo3File),
+                6593734613
+            );
+        }
 
-        Bootstrap::initializeBackendUser(CommandLineUserAuthentication::class);
-        $GLOBALS['LANG'] = $this->get(LanguageServiceFactory::class)->createFromUserPreferences($GLOBALS['BE_USER']);
+        $cmd = vsprintf('TYPO3_PATH_ROOT=' . escapeshellarg($this->instancePath)
+            . ' TYPO3_PATH_APP=' . escapeshellarg($this->instancePath)
+            . ' ' . PHP_BINARY . ' ' . escapeshellarg($typo3File)
+            . ' ' . $cmdline . ' 2>&1', array_map(escapeshellarg(...), $args));
 
-        $application = new ConsoleApplication('TYPO3 CMS', (new Typo3Version())->getVersion());
-        $application->setAutoExit(false);
-        $application->setDispatcher($this->get(EventDispatcherInterface::class));
-        $application->setCommandLoader($this->get(CommandRegistry::class));
-        $status = $application->run($input, $output);
+        $outputContent = '';
+
+        $handle = popen($cmd, 'r');
+        while (!feof($handle)) {
+            $outputContent .= fgets($handle, 4096);
+        }
+        $status = pclose($handle);
 
         return [
             'status' => $status,
-            'output' => $output->fetch(),
+            'output' => $outputContent,
         ];
     }
 }
